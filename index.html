@@ -60,7 +60,12 @@ h2 { font-size: 1rem; color: #888; margin-bottom: 1rem; }
   border-radius: 999px;
   font-size: 0.7rem;
 }
-canvas { border-radius: 0.75rem; background: #0d1b36; }
+canvas {
+  border-radius: 0.75rem;
+  background: #0d1b36;
+  width: 320px;
+  height: 280px;
+}
 </style>
 </head>
 <body>
@@ -68,7 +73,7 @@ canvas { border-radius: 0.75rem; background: #0d1b36; }
 <h2>Character Design Preview</h2>
 
 <div class="card">
-  <canvas id="cube-canvas" width="320" height="280"></canvas>
+  <canvas id="cube-canvas" width="640" height="560"></canvas>
   <div class="name">Cube</div>
   <div class="desc">A tiny white Siamese kitten with bright blue eyes, a pink nose, and a uniquely square-shaped tail. Curious and mischievous.</div>
   <div class="traits">
@@ -80,7 +85,7 @@ canvas { border-radius: 0.75rem; background: #0d1b36; }
 </div>
 
 <div class="card">
-  <canvas id="willow-canvas" width="320" height="280"></canvas>
+  <canvas id="willow-canvas" width="640" height="560"></canvas>
   <div class="name">Willow</div>
   <div class="desc">A sleek black Shiba Inu with amber eyes, a fluffy curled tail, and the classic Shiba smile. Proud and loyal.</div>
   <div class="traits">
@@ -92,7 +97,7 @@ canvas { border-radius: 0.75rem; background: #0d1b36; }
 </div>
 
 <div class="card">
-  <canvas id="dropje-canvas" width="320" height="280"></canvas>
+  <canvas id="dropje-canvas" width="640" height="560"></canvas>
   <div class="name">Dropje</div>
   <div class="desc">A big-hearted black Labrador with warm brown eyes, floppy ears, and a thick otter tail. Gentle and goofy.</div>
   <div class="traits">
@@ -104,34 +109,113 @@ canvas { border-radius: 0.75rem; background: #0d1b36; }
 </div>
 
 <script>
-// ── Drawing helpers ──
-function drawEllipse(ctx, cx, cy, rx, ry, color) {
+// ── Shared drawing utilities ──
+
+function fillBg(ctx, W, H) {
+  const bg = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, 400);
+  bg.addColorStop(0, '#1a2744');
+  bg.addColorStop(1, '#0d1b36');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function gradEllipse(ctx, cx, cy, rx, ry, colorInner, colorOuter, angle) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (angle) ctx.rotate(angle);
+  const g = ctx.createRadialGradient(0, -ry*0.2, rx*0.1, 0, 0, Math.max(rx,ry));
+  g.addColorStop(0, colorInner);
+  g.addColorStop(1, colorOuter);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function solidEllipse(ctx, cx, cy, rx, ry, color, angle) {
+  ctx.save();
+  if (angle) { ctx.translate(cx, cy); ctx.rotate(angle); ctx.translate(-cx, -cy); }
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
   ctx.fill();
+  ctx.restore();
 }
-function drawCircle(ctx, cx, cy, r, color) {
-  drawEllipse(ctx, cx, cy, r, r, color);
+
+function furStrokes(ctx, cx, cy, rx, ry, count, len, color, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha || 0.3;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + (Math.random()-0.5)*0.3;
+    const r = 0.85 + Math.random()*0.15;
+    const sx = cx + Math.cos(angle) * rx * r;
+    const sy = cy + Math.sin(angle) * ry * r;
+    const ex = sx + Math.cos(angle) * (len + Math.random()*len*0.5);
+    const ey = sy + Math.sin(angle) * (len + Math.random()*len*0.5);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
-function drawEye(ctx, cx, cy, r, irisColor, pupilScale) {
-  drawCircle(ctx, cx, cy, r, '#fff');
-  drawCircle(ctx, cx, cy, r * 0.6, irisColor);
-  drawCircle(ctx, cx, cy, r * (pupilScale || 0.3), '#111');
-  // highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+
+function drawRealisticEye(ctx, cx, cy, w, h, irisColor, irisColor2, pupilRatio, angle) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (angle) ctx.rotate(angle);
+
+  // Eye white with slight gradient
+  const ewg = ctx.createRadialGradient(0, 0, w*0.1, 0, 0, w);
+  ewg.addColorStop(0, '#fff');
+  ewg.addColorStop(1, '#ddd');
+  ctx.fillStyle = ewg;
   ctx.beginPath();
-  ctx.arc(cx + r * 0.2, cy - r * 0.2, r * 0.18, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, w, h, 0, 0, Math.PI*2);
   ctx.fill();
-}
-function drawTriangle(ctx, x1,y1, x2,y2, x3,y3, color) {
-  ctx.fillStyle = color;
+
+  // Iris with gradient
+  const ir = h * 0.65;
+  const ig = ctx.createRadialGradient(0, -ir*0.15, ir*0.15, 0, 0, ir);
+  ig.addColorStop(0, irisColor);
+  ig.addColorStop(0.7, irisColor2 || irisColor);
+  ig.addColorStop(1, '#111');
+  ctx.fillStyle = ig;
   ctx.beginPath();
-  ctx.moveTo(x1,y1);
-  ctx.lineTo(x2,y2);
-  ctx.lineTo(x3,y3);
-  ctx.closePath();
+  ctx.arc(0, 0, ir, 0, Math.PI*2);
   ctx.fill();
+
+  // Pupil
+  const pr = ir * (pupilRatio || 0.45);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.beginPath();
+  ctx.arc(0, 0, pr, 0, Math.PI*2);
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.ellipse(-w*0.18, -h*0.22, w*0.2, h*0.18, -0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Secondary highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(w*0.2, h*0.15, w*0.08, h*0.08, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Eye rim
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w, h, 0, 0, Math.PI*2);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 // ══════════════════════════════════════
@@ -141,109 +225,302 @@ function drawTriangle(ctx, x1,y1, x2,y2, x3,y3, color) {
   const c = document.getElementById('cube-canvas');
   const ctx = c.getContext('2d');
   const W = c.width, H = c.height;
+  fillBg(ctx, W, H);
 
-  // Background - soft gradient
-  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
-  bg.addColorStop(0, '#1a2744');
-  bg.addColorStop(1, '#0d1b36');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  const cx = W/2, cy = H/2 + 15;
+  const cx = W/2, cy = H/2 + 30;
   const cream = '#FAF0E6';
-  const darkPoint = '#8B7D6B';  // siamese dark points
+  const creamLight = '#FFFDF8';
+  const creamShadow = '#E8DDD0';
+  const darkPoint = '#8B7D6B';
+  const darkPointDeep = '#6B5F4F';
   const pinkNose = '#FFB6C1';
 
-  // Tail — SQUARE shape (unique feature!)
+  // === TAIL — Fluffy tail bent into square shape (3 x 90° bends) ===
+  // Path: exits body going right, bends up, bends left, bends down (short tip)
+  const tailPts = [
+    [cx + 55, cy + 10],   // attached to body upper-right
+    [cx + 108, cy + 10],  // goes right (segment 1)
+    [cx + 108, cy - 70],  // bends up (bend 1) goes up (segment 2)
+    [cx + 55, cy - 70],   // bends left (bend 2) goes left (segment 3)
+    [cx + 55, cy - 44],   // bends down (bend 3) short tip down
+  ];
+
+  // Outer fluffy stroke (dark shadow)
   ctx.save();
-  ctx.translate(cx + 55, cy - 10);
-  ctx.rotate(0.15);
-  // tail stem
-  ctx.fillStyle = cream;
-  ctx.fillRect(-4, -20, 8, 30);
-  // square tip
-  ctx.fillStyle = darkPoint;
-  ctx.fillRect(-12, -38, 24, 24);
-  ctx.strokeStyle = '#6B5F4F';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(-12, -38, 24, 24);
-  ctx.restore();
-
-  // Body
-  drawEllipse(ctx, cx, cy + 20, 38, 32, cream);
-
-  // Back paws
-  drawEllipse(ctx, cx - 22, cy + 50, 14, 8, cream);
-  drawEllipse(ctx, cx + 22, cy + 50, 14, 8, cream);
-  // dark paw tips (siamese points)
-  drawEllipse(ctx, cx - 24, cy + 52, 8, 5, darkPoint);
-  drawEllipse(ctx, cx + 24, cy + 52, 8, 5, darkPoint);
-
-  // Front paws
-  drawEllipse(ctx, cx - 15, cy + 48, 10, 7, cream);
-  drawEllipse(ctx, cx + 15, cy + 48, 10, 7, cream);
-  drawEllipse(ctx, cx - 16, cy + 50, 6, 4, darkPoint);
-  drawEllipse(ctx, cx + 16, cy + 50, 6, 4, darkPoint);
-
-  // Head
-  drawEllipse(ctx, cx, cy - 25, 34, 30, cream);
-
-  // Ears — pointed with dark tips
-  drawTriangle(ctx, cx-28, cy-48, cx-14, cy-68, cx-6, cy-44, cream);
-  drawTriangle(ctx, cx+28, cy-48, cx+14, cy-68, cx+6, cy-44, cream);
-  // dark ear tips (siamese)
-  drawTriangle(ctx, cx-24, cy-54, cx-14, cy-68, cx-10, cy-52, darkPoint);
-  drawTriangle(ctx, cx+24, cy-54, cx+14, cy-68, cx+10, cy-52, darkPoint);
-  // inner ear pink
-  drawTriangle(ctx, cx-22, cy-48, cx-15, cy-60, cx-10, cy-46, '#FFD1DC');
-  drawTriangle(ctx, cx+22, cy-48, cx+15, cy-60, cx+10, cy-46, '#FFD1DC');
-
-  // Siamese face mask (dark muzzle)
-  drawEllipse(ctx, cx, cy - 14, 16, 12, darkPoint);
-
-  // Eyes — big blue Siamese eyes
-  drawEye(ctx, cx - 13, cy - 30, 8, '#4A9BE8', 0.35);
-  drawEye(ctx, cx + 13, cy - 30, 8, '#4A9BE8', 0.35);
-
-  // Nose
-  ctx.fillStyle = pinkNose;
+  ctx.lineWidth = 22;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = creamShadow;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 17);
-  ctx.lineTo(cx - 4, cy - 13);
-  ctx.lineTo(cx + 4, cy - 13);
-  ctx.closePath();
-  ctx.fill();
-
-  // Mouth
-  ctx.strokeStyle = '#6B5F4F';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - 13);
-  ctx.lineTo(cx - 5, cy - 8);
-  ctx.moveTo(cx, cy - 13);
-  ctx.lineTo(cx + 5, cy - 8);
+  ctx.moveTo(tailPts[0][0], tailPts[0][1]);
+  for (let i = 1; i < tailPts.length; i++) ctx.lineTo(tailPts[i][0], tailPts[i][1]);
   ctx.stroke();
 
-  // Whiskers
-  ctx.strokeStyle = '#ccc';
+  // Main fluffy tail body (cream)
+  ctx.lineWidth = 18;
+  ctx.strokeStyle = cream;
+  ctx.beginPath();
+  ctx.moveTo(tailPts[0][0], tailPts[0][1]);
+  for (let i = 1; i < tailPts.length; i++) ctx.lineTo(tailPts[i][0], tailPts[i][1]);
+  ctx.stroke();
+
+  // Inner highlight
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = creamLight;
+  ctx.beginPath();
+  ctx.moveTo(tailPts[0][0], tailPts[0][1]);
+  for (let i = 1; i < tailPts.length; i++) ctx.lineTo(tailPts[i][0], tailPts[i][1]);
+  ctx.stroke();
+
+  // Siamese dark points — tip of the tail gets darker
+  // Draw just the last 2 segments darker
+  const tipG = ctx.createLinearGradient(tailPts[2][0], tailPts[2][1], tailPts[4][0], tailPts[4][1]);
+  tipG.addColorStop(0, 'rgba(139,125,107,0)');
+  tipG.addColorStop(0.3, 'rgba(139,125,107,0.5)');
+  tipG.addColorStop(1, darkPoint);
+  ctx.lineWidth = 18;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = tipG;
+  ctx.beginPath();
+  ctx.moveTo(tailPts[2][0], tailPts[2][1]);
+  ctx.lineTo(tailPts[3][0], tailPts[3][1]);
+  ctx.lineTo(tailPts[4][0], tailPts[4][1]);
+  ctx.stroke();
+
+  // Fur tufts along the tail path
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+  for (let seg = 0; seg < tailPts.length - 1; seg++) {
+    const [x1, y1] = tailPts[seg];
+    const [x2, y2] = tailPts[seg + 1];
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    // Normal direction (perpendicular)
+    const nx = -dy / len, ny = dx / len;
+    const furCount = Math.floor(len / 6);
+    // Color gets darker toward the tip
+    const segProgress = seg / (tailPts.length - 1);
+    const furColor = segProgress > 0.5 ? darkPointDeep : creamShadow;
+    ctx.strokeStyle = furColor;
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < furCount; i++) {
+      const t = (i + 0.5) / furCount;
+      const fx = x1 + dx * t;
+      const fy = y1 + dy * t;
+      const side = (i % 2 === 0) ? 1 : -1;
+      const fLen = 8 + Math.random() * 6;
+      ctx.beginPath();
+      ctx.moveTo(fx + nx * 9 * side, fy + ny * 9 * side);
+      ctx.lineTo(fx + nx * (9 + fLen) * side, fy + ny * (9 + fLen) * side);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // === BODY ===
+  // Shadow under body
+  solidEllipse(ctx, cx, cy+60, 50, 12, 'rgba(0,0,0,0.3)');
+
+  // Back body shape
+  gradEllipse(ctx, cx, cy+30, 72, 55, creamLight, creamShadow);
+
+  // Belly highlight
+  gradEllipse(ctx, cx - 5, cy+25, 40, 35, 'rgba(255,253,248,0.5)', 'rgba(255,253,248,0)');
+
+  // Fur texture on body
+  furStrokes(ctx, cx, cy+30, 68, 50, 50, 8, creamShadow, 0.15);
+
+  // === BACK PAWS ===
+  // Left back paw
+  gradEllipse(ctx, cx - 42, cy+72, 22, 14, cream, creamShadow);
+  gradEllipse(ctx, cx - 45, cy+75, 14, 9, darkPoint, darkPointDeep);
+  // Toes
+  for (let i = 0; i < 3; i++) {
+    solidEllipse(ctx, cx - 50 + i*6, cy+78, 4, 3, darkPointDeep);
+  }
+
+  // Right back paw
+  gradEllipse(ctx, cx + 42, cy+72, 22, 14, cream, creamShadow);
+  gradEllipse(ctx, cx + 45, cy+75, 14, 9, darkPoint, darkPointDeep);
+  for (let i = 0; i < 3; i++) {
+    solidEllipse(ctx, cx + 38 + i*6, cy+78, 4, 3, darkPointDeep);
+  }
+
+  // === FRONT PAWS ===
+  // Left front leg
+  ctx.save();
+  const lfg = ctx.createLinearGradient(cx-32, cy+40, cx-32, cy+80);
+  lfg.addColorStop(0, cream);
+  lfg.addColorStop(0.7, cream);
+  lfg.addColorStop(1, darkPoint);
+  ctx.fillStyle = lfg;
+  ctx.beginPath();
+  ctx.ellipse(cx - 28, cy+65, 16, 22, -0.1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  gradEllipse(ctx, cx - 28, cy+82, 16, 10, darkPoint, darkPointDeep);
+  for (let i = 0; i < 3; i++) solidEllipse(ctx, cx-34+i*6, cy+86, 4, 3, darkPointDeep);
+
+  // Right front leg
+  ctx.save();
+  const rfg = ctx.createLinearGradient(cx+32, cy+40, cx+32, cy+80);
+  rfg.addColorStop(0, cream);
+  rfg.addColorStop(0.7, cream);
+  rfg.addColorStop(1, darkPoint);
+  ctx.fillStyle = rfg;
+  ctx.beginPath();
+  ctx.ellipse(cx + 28, cy+65, 16, 22, 0.1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  gradEllipse(ctx, cx + 28, cy+82, 16, 10, darkPoint, darkPointDeep);
+  for (let i = 0; i < 3; i++) solidEllipse(ctx, cx+22+i*6, cy+86, 4, 3, darkPointDeep);
+
+  // === HEAD ===
+  gradEllipse(ctx, cx, cy - 40, 62, 54, creamLight, creamShadow);
+
+  // Fur texture on head
+  furStrokes(ctx, cx, cy - 40, 58, 50, 40, 6, creamShadow, 0.12);
+
+  // === EARS ===
+  // Left ear
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, cy - 72);
+  ctx.quadraticCurveTo(cx - 38, cy - 130, cx - 18, cy - 118);
+  ctx.quadraticCurveTo(cx - 12, cy - 100, cx - 14, cy - 72);
+  ctx.closePath();
+  let earG = ctx.createLinearGradient(cx-50, cy-72, cx-25, cy-130);
+  earG.addColorStop(0, cream);
+  earG.addColorStop(0.5, cream);
+  earG.addColorStop(1, darkPoint);
+  ctx.fillStyle = earG;
+  ctx.fill();
+
+  // Left ear inner pink
+  ctx.beginPath();
+  ctx.moveTo(cx - 44, cy - 78);
+  ctx.quadraticCurveTo(cx - 34, cy - 118, cx - 22, cy - 110);
+  ctx.quadraticCurveTo(cx - 18, cy - 96, cx - 20, cy - 78);
+  ctx.closePath();
+  const epG = ctx.createLinearGradient(cx-44, cy-78, cx-28, cy-118);
+  epG.addColorStop(0, '#FFD5DD');
+  epG.addColorStop(1, '#FFAAB8');
+  ctx.fillStyle = epG;
+  ctx.fill();
+
+  // Right ear
+  ctx.beginPath();
+  ctx.moveTo(cx + 50, cy - 72);
+  ctx.quadraticCurveTo(cx + 38, cy - 130, cx + 18, cy - 118);
+  ctx.quadraticCurveTo(cx + 12, cy - 100, cx + 14, cy - 72);
+  ctx.closePath();
+  earG = ctx.createLinearGradient(cx+50, cy-72, cx+25, cy-130);
+  earG.addColorStop(0, cream);
+  earG.addColorStop(0.5, cream);
+  earG.addColorStop(1, darkPoint);
+  ctx.fillStyle = earG;
+  ctx.fill();
+
+  // Right ear inner pink
+  ctx.beginPath();
+  ctx.moveTo(cx + 44, cy - 78);
+  ctx.quadraticCurveTo(cx + 34, cy - 118, cx + 22, cy - 110);
+  ctx.quadraticCurveTo(cx + 18, cy - 96, cx + 20, cy - 78);
+  ctx.closePath();
+  ctx.fillStyle = epG;
+  ctx.fill();
+
+  // === SIAMESE FACE MASK ===
+  // Gradual transition from cream to dark around muzzle
+  const maskG = ctx.createRadialGradient(cx, cy - 22, 8, cx, cy - 22, 34);
+  maskG.addColorStop(0, darkPoint);
+  maskG.addColorStop(0.6, darkPoint);
+  maskG.addColorStop(1, 'rgba(139,125,107,0)');
+  ctx.fillStyle = maskG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 22, 30, 24, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Muzzle shape
+  gradEllipse(ctx, cx, cy - 18, 22, 16, '#9A8B7A', darkPointDeep);
+
+  // === EYES — big blue Siamese eyes ===
+  drawRealisticEye(ctx, cx - 22, cy - 52, 14, 13, '#5AAFE8', '#2B7BC4', 0.4, -0.08);
+  drawRealisticEye(ctx, cx + 22, cy - 52, 14, 13, '#5AAFE8', '#2B7BC4', 0.4, 0.08);
+
+  // Eyelid shadow
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = creamShadow;
+  ctx.beginPath();
+  ctx.ellipse(cx - 22, cy - 56, 16, 6, 0, 0, Math.PI);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + 22, cy - 56, 16, 6, 0, 0, Math.PI);
+  ctx.fill();
+  ctx.restore();
+
+  // === NOSE ===
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 26);
+  ctx.quadraticCurveTo(cx - 8, cy - 18, cx - 6, cy - 16);
+  ctx.lineTo(cx + 6, cy - 16);
+  ctx.quadraticCurveTo(cx + 8, cy - 18, cx, cy - 26);
+  ctx.closePath();
+  const noseG = ctx.createLinearGradient(cx, cy - 26, cx, cy - 16);
+  noseG.addColorStop(0, '#FFB6C1');
+  noseG.addColorStop(1, '#E8929F');
+  ctx.fillStyle = noseG;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
   ctx.lineWidth = 0.8;
-  [[-1, -0.1], [-1, 0.1], [1, -0.1], [1, 0.1]].forEach(([dx, dy]) => {
+  ctx.stroke();
+
+  // Nostrils
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  solidEllipse(ctx, cx - 3, cy - 19, 2, 1.5, 'rgba(0,0,0,0.25)');
+  solidEllipse(ctx, cx + 3, cy - 19, 2, 1.5, 'rgba(0,0,0,0.25)');
+
+  // === MOUTH ===
+  ctx.strokeStyle = '#6B5F4F';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 16);
+  ctx.quadraticCurveTo(cx - 4, cy - 10, cx - 10, cy - 12);
+  ctx.moveTo(cx, cy - 16);
+  ctx.quadraticCurveTo(cx + 4, cy - 10, cx + 10, cy - 12);
+  ctx.stroke();
+
+  // === WHISKERS ===
+  ctx.strokeStyle = 'rgba(220,220,220,0.6)';
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'round';
+  // Left whiskers
+  [[-0.05, -0.3], [0, 0], [0.05, 0.25]].forEach(([dy, curve]) => {
     ctx.beginPath();
-    ctx.moveTo(cx + dx * 12, cy - 12);
-    ctx.lineTo(cx + dx * 40, cy - 12 + dy * 40);
+    ctx.moveTo(cx - 18, cy - 18 + dy*40);
+    ctx.quadraticCurveTo(cx - 55, cy - 22 + dy*40 + curve*20, cx - 78, cy - 20 + dy*60);
+    ctx.stroke();
+  });
+  // Right whiskers
+  [[-0.05, -0.3], [0, 0], [0.05, 0.25]].forEach(([dy, curve]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + 18, cy - 18 + dy*40);
+    ctx.quadraticCurveTo(cx + 55, cy - 22 + dy*40 + curve*20, cx + 78, cy - 20 + dy*60);
     ctx.stroke();
   });
 
-  // Label the square tail
+  // === Label the square tail ===
   ctx.fillStyle = '#7ec8e3';
-  ctx.font = '11px Georgia';
+  ctx.font = '18px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText('square tail!', cx + 58, cy - 52);
+  ctx.fillText('square tail!', cx + 118, cy - 78);
   ctx.beginPath();
-  ctx.moveTo(cx + 58, cy - 48);
-  ctx.lineTo(cx + 55, cy - 35);
+  ctx.moveTo(cx + 110, cy - 74);
+  ctx.lineTo(cx + 102, cy - 64);
   ctx.strokeStyle = '#7ec8e3';
-  ctx.lineWidth = 0.8;
+  ctx.lineWidth = 1;
   ctx.stroke();
 })();
 
@@ -254,100 +531,290 @@ function drawTriangle(ctx, x1,y1, x2,y2, x3,y3, color) {
   const c = document.getElementById('willow-canvas');
   const ctx = c.getContext('2d');
   const W = c.width, H = c.height;
+  fillBg(ctx, W, H);
 
-  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
-  bg.addColorStop(0, '#1a2744');
-  bg.addColorStop(1, '#0d1b36');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  const cx = W/2, cy = H/2 + 15;
-  const black = '#1a1a1a';
-  const darkGray = '#2a2a2a';
-  const tan = '#3a3530'; // subtle tan markings on black shiba
+  const cx = W/2, cy = H/2 + 30;
+  const black = '#1c1c1c';
+  const blackLight = '#2d2d2d';
+  const blackSheen = '#383838';
+  const tan = '#E8E4E0';         // urajiro white markings
+  const tanLight = '#F5F2EF';
+  const tanDark = '#CCC8C4';
   const amber = '#E8A317';
+  const amberDark = '#B8800F';
 
-  // Curled tail (Shiba style)
+  // === FLUFFY CURLED TAIL ===
+  ctx.save();
+  ctx.translate(cx + 85, cy - 30);
+  // Fluffy tail curl - thick bezier path
+  ctx.beginPath();
+  ctx.moveTo(0, 20);
+  ctx.bezierCurveTo(30, 10, 40, -30, 20, -45);
+  ctx.bezierCurveTo(5, -55, -15, -40, -10, -20);
+  ctx.bezierCurveTo(-8, -10, 5, -5, 10, -15);
+  ctx.lineWidth = 22;
   ctx.strokeStyle = black;
-  ctx.lineWidth = 12;
   ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(cx + 48, cy - 15, 20, Math.PI * 1.2, Math.PI * 2.8);
   ctx.stroke();
-  ctx.strokeStyle = darkGray;
-  ctx.lineWidth = 9;
+  // Inner lighter fluff
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = blackLight;
   ctx.beginPath();
-  ctx.arc(cx + 48, cy - 15, 20, Math.PI * 1.2, Math.PI * 2.8);
+  ctx.moveTo(0, 20);
+  ctx.bezierCurveTo(30, 10, 40, -30, 20, -45);
+  ctx.bezierCurveTo(5, -55, -15, -40, -10, -20);
   ctx.stroke();
-
-  // Body
-  drawEllipse(ctx, cx, cy + 20, 42, 35, black);
-  drawEllipse(ctx, cx, cy + 22, 36, 28, darkGray);
-
-  // Legs
-  // back
-  ctx.fillStyle = black;
-  ctx.fillRect(cx - 30, cy + 35, 14, 25);
-  ctx.fillRect(cx + 16, cy + 35, 14, 25);
-  // front
-  ctx.fillRect(cx - 20, cy + 38, 12, 22);
-  ctx.fillRect(cx + 8, cy + 38, 12, 22);
-  // paws
-  drawEllipse(ctx, cx - 23, cy + 60, 9, 5, darkGray);
-  drawEllipse(ctx, cx + 23, cy + 60, 9, 5, darkGray);
-  drawEllipse(ctx, cx - 14, cy + 60, 8, 5, darkGray);
-  drawEllipse(ctx, cx + 14, cy + 60, 8, 5, darkGray);
-
-  // Head — Shiba shape (rounder, fox-like)
-  drawEllipse(ctx, cx, cy - 22, 36, 32, black);
-  // cheeks (shiba puff)
-  drawEllipse(ctx, cx - 18, cy - 10, 18, 15, darkGray);
-  drawEllipse(ctx, cx + 18, cy - 10, 18, 15, darkGray);
-  // face center
-  drawEllipse(ctx, cx, cy - 15, 20, 18, darkGray);
-
-  // Ears — pointed Shiba ears
-  drawTriangle(ctx, cx-30, cy-44, cx-18, cy-72, cx-4, cy-40, black);
-  drawTriangle(ctx, cx+30, cy-44, cx+18, cy-72, cx+4, cy-40, black);
-  // inner ears
-  drawTriangle(ctx, cx-24, cy-46, cx-18, cy-64, cx-10, cy-42, '#2d2520');
-  drawTriangle(ctx, cx+24, cy-46, cx+18, cy-64, cx+10, cy-42, '#2d2520');
-
-  // Eyes — amber Shiba eyes (slightly squinting = Shiba smile)
-  drawEye(ctx, cx - 12, cy - 24, 7, amber, 0.4);
-  drawEye(ctx, cx + 12, cy - 24, 7, amber, 0.4);
-
-  // slight squint lines above eyes
-  ctx.strokeStyle = '#111';
+  // Fur tufts on tail
+  ctx.strokeStyle = blackSheen;
   ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(cx - 12, cy - 24, 9, Math.PI * 1.15, Math.PI * 1.85);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx + 12, cy - 24, 9, Math.PI * 1.15, Math.PI * 1.85);
-  ctx.stroke();
+  ctx.globalAlpha = 0.4;
+  for (let i = 0; i < 20; i++) {
+    const t = i / 20;
+    const tx = 30*t*Math.sin(t*3);
+    const ty = 20 - 65*t;
+    const angle = Math.random() * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + Math.cos(angle)*8, ty + Math.sin(angle)*8);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 
-  // Nose
-  ctx.fillStyle = '#333';
+  // === BODY ===
+  solidEllipse(ctx, cx, cy+65, 55, 14, 'rgba(0,0,0,0.3)');
+
+  // Main body shape - Shiba compact & muscular
+  gradEllipse(ctx, cx, cy + 30, 78, 58, blackSheen, black);
+
+  // Chest/belly urajiro tan
+  const chestG = ctx.createRadialGradient(cx, cy+20, 5, cx, cy+30, 55);
+  chestG.addColorStop(0, tan);
+  chestG.addColorStop(0.4, tanDark);
+  chestG.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = chestG;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 12);
-  ctx.lineTo(cx - 5, cy - 7);
-  ctx.lineTo(cx + 5, cy - 7);
+  ctx.ellipse(cx, cy + 20, 40, 45, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Fur texture on body
+  furStrokes(ctx, cx, cy+30, 74, 54, 60, 8, blackSheen, 0.15);
+
+  // === LEGS ===
+  // Back left
+  ctx.save();
+  const blG = ctx.createLinearGradient(cx-48, cy+45, cx-48, cy+90);
+  blG.addColorStop(0, black);
+  blG.addColorStop(0.7, black);
+  blG.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = blG;
+  ctx.beginPath();
+  ctx.moveTo(cx - 56, cy + 45);
+  ctx.quadraticCurveTo(cx - 60, cy + 70, cx - 54, cy + 90);
+  ctx.lineTo(cx - 38, cy + 90);
+  ctx.quadraticCurveTo(cx - 36, cy + 70, cx - 38, cy + 45);
+  ctx.closePath();
+  ctx.fill();
+  // Tan marking on inner leg
+  ctx.fillStyle = tanDark;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.ellipse(cx - 42, cy + 80, 6, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Back right
+  ctx.save();
+  ctx.fillStyle = blG;
+  ctx.beginPath();
+  ctx.moveTo(cx + 56, cy + 45);
+  ctx.quadraticCurveTo(cx + 60, cy + 70, cx + 54, cy + 90);
+  ctx.lineTo(cx + 38, cy + 90);
+  ctx.quadraticCurveTo(cx + 36, cy + 70, cx + 38, cy + 45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Front left
+  ctx.fillStyle = black;
+  ctx.beginPath();
+  ctx.moveTo(cx - 38, cy + 48);
+  ctx.quadraticCurveTo(cx - 42, cy + 70, cx - 38, cy + 92);
+  ctx.lineTo(cx - 24, cy + 92);
+  ctx.quadraticCurveTo(cx - 22, cy + 70, cx - 24, cy + 48);
   ctx.closePath();
   ctx.fill();
 
-  // Shiba smile / mouth
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1.5;
+  // Front right
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 7);
-  ctx.quadraticCurveTo(cx - 12, cy + 4, cx - 18, cy - 2);
-  ctx.moveTo(cx, cy - 7);
-  ctx.quadraticCurveTo(cx + 12, cy + 4, cx + 18, cy - 2);
+  ctx.moveTo(cx + 38, cy + 48);
+  ctx.quadraticCurveTo(cx + 42, cy + 70, cx + 38, cy + 92);
+  ctx.lineTo(cx + 24, cy + 92);
+  ctx.quadraticCurveTo(cx + 22, cy + 70, cx + 24, cy + 48);
+  ctx.closePath();
+  ctx.fill();
+
+  // Paws
+  gradEllipse(ctx, cx - 46, cy + 92, 12, 7, blackLight, black);
+  gradEllipse(ctx, cx + 46, cy + 92, 12, 7, blackLight, black);
+  gradEllipse(ctx, cx - 31, cy + 94, 11, 7, blackLight, black);
+  gradEllipse(ctx, cx + 31, cy + 94, 11, 7, blackLight, black);
+
+  // === HEAD — Shiba wedge shape ===
+  // Base head shape
+  gradEllipse(ctx, cx, cy - 38, 64, 56, blackSheen, black);
+
+  // Cheek puffs (Shiba characteristic)
+  gradEllipse(ctx, cx - 35, cy - 18, 30, 26, blackSheen, black);
+  gradEllipse(ctx, cx + 35, cy - 18, 30, 26, blackSheen, black);
+
+  // Urajiro cheek markings (tan patches on cheeks)
+  ctx.save();
+  const cheekTanL = ctx.createRadialGradient(cx - 28, cy - 16, 3, cx - 28, cy - 16, 22);
+  cheekTanL.addColorStop(0, tanLight);
+  cheekTanL.addColorStop(0.5, tan);
+  cheekTanL.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = cheekTanL;
+  ctx.beginPath();
+  ctx.ellipse(cx - 28, cy - 16, 20, 18, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  const cheekTanR = ctx.createRadialGradient(cx + 28, cy - 16, 3, cx + 28, cy - 16, 22);
+  cheekTanR.addColorStop(0, tanLight);
+  cheekTanR.addColorStop(0.5, tan);
+  cheekTanR.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = cheekTanR;
+  ctx.beginPath();
+  ctx.ellipse(cx + 28, cy - 16, 20, 18, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Muzzle bridge
+  gradEllipse(ctx, cx, cy - 24, 25, 22, blackLight, black);
+
+  // Muzzle/snout area — lighter
+  const muzzleG = ctx.createRadialGradient(cx, cy - 12, 4, cx, cy - 12, 20);
+  muzzleG.addColorStop(0, tanLight);
+  muzzleG.addColorStop(0.6, tan);
+  muzzleG.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = muzzleG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 12, 18, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Fur texture on head
+  furStrokes(ctx, cx, cy - 38, 60, 52, 50, 6, blackSheen, 0.12);
+
+  // === EARS — pointed Shiba ears ===
+  // Left ear
+  ctx.beginPath();
+  ctx.moveTo(cx - 52, cy - 68);
+  ctx.quadraticCurveTo(cx - 48, cy - 140, cx - 24, cy - 132);
+  ctx.quadraticCurveTo(cx - 10, cy - 110, cx - 12, cy - 68);
+  ctx.closePath();
+  let earG = ctx.createLinearGradient(cx - 52, cy - 68, cx - 30, cy - 140);
+  earG.addColorStop(0, blackLight);
+  earG.addColorStop(1, black);
+  ctx.fillStyle = earG;
+  ctx.fill();
+
+  // Left inner ear
+  ctx.beginPath();
+  ctx.moveTo(cx - 46, cy - 74);
+  ctx.quadraticCurveTo(cx - 42, cy - 124, cx - 26, cy - 120);
+  ctx.quadraticCurveTo(cx - 16, cy - 104, cx - 18, cy - 74);
+  ctx.closePath();
+  const iearG = ctx.createLinearGradient(cx - 46, cy - 74, cx - 30, cy - 124);
+  iearG.addColorStop(0, '#3a3230');
+  iearG.addColorStop(1, '#2a2220');
+  ctx.fillStyle = iearG;
+  ctx.fill();
+
+  // Right ear
+  ctx.beginPath();
+  ctx.moveTo(cx + 52, cy - 68);
+  ctx.quadraticCurveTo(cx + 48, cy - 140, cx + 24, cy - 132);
+  ctx.quadraticCurveTo(cx + 10, cy - 110, cx + 12, cy - 68);
+  ctx.closePath();
+  earG = ctx.createLinearGradient(cx + 52, cy - 68, cx + 30, cy - 140);
+  earG.addColorStop(0, blackLight);
+  earG.addColorStop(1, black);
+  ctx.fillStyle = earG;
+  ctx.fill();
+
+  // Right inner ear
+  ctx.beginPath();
+  ctx.moveTo(cx + 46, cy - 74);
+  ctx.quadraticCurveTo(cx + 42, cy - 124, cx + 26, cy - 120);
+  ctx.quadraticCurveTo(cx + 16, cy - 104, cx + 18, cy - 74);
+  ctx.closePath();
+  ctx.fillStyle = iearG;
+  ctx.fill();
+
+  // === EYEBROW TAN MARKS (urajiro) ===
+  ctx.save();
+  const browG = ctx.createRadialGradient(cx - 20, cy - 56, 2, cx - 20, cy - 56, 12);
+  browG.addColorStop(0, tan);
+  browG.addColorStop(1, 'rgba(232,228,224,0)');
+  ctx.fillStyle = browG;
+  ctx.beginPath();
+  ctx.ellipse(cx - 20, cy - 56, 10, 5, -0.15, 0, Math.PI*2);
+  ctx.fill();
+
+  const browG2 = ctx.createRadialGradient(cx + 20, cy - 56, 2, cx + 20, cy - 56, 12);
+  browG2.addColorStop(0, tan);
+  browG2.addColorStop(1, 'rgba(232,228,224,0)');
+  ctx.fillStyle = browG2;
+  ctx.beginPath();
+  ctx.ellipse(cx + 20, cy - 56, 10, 5, 0.15, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // === EYES — amber Shiba eyes ===
+  // Slight almond shape
+  drawRealisticEye(ctx, cx - 20, cy - 42, 12, 10, amber, amberDark, 0.4, -0.1);
+  drawRealisticEye(ctx, cx + 20, cy - 42, 12, 10, amber, amberDark, 0.4, 0.1);
+
+  // Eyelid lines (Shiba squint)
+  ctx.strokeStyle = black;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx - 20, cy - 42, 13, Math.PI * 1.1, Math.PI * 1.9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + 20, cy - 42, 13, Math.PI * 1.1, Math.PI * 1.9);
   ctx.stroke();
 
-  // Subtle chest marking
-  drawEllipse(ctx, cx, cy + 8, 14, 10, '#2d2825');
+  // === NOSE ===
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 18);
+  ctx.quadraticCurveTo(cx - 8, cy - 8, cx - 7, cy - 6);
+  ctx.lineTo(cx + 7, cy - 6);
+  ctx.quadraticCurveTo(cx + 8, cy - 8, cx, cy - 18);
+  ctx.closePath();
+  const noseG = ctx.createLinearGradient(cx, cy - 18, cx, cy - 6);
+  noseG.addColorStop(0, '#2a2a2a');
+  noseG.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = noseG;
+  ctx.fill();
+  // Nose shine
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  solidEllipse(ctx, cx - 2, cy - 14, 3, 2, 'rgba(255,255,255,0.12)');
+  // Nostrils
+  solidEllipse(ctx, cx - 3, cy - 10, 2.5, 2, 'rgba(0,0,0,0.4)');
+  solidEllipse(ctx, cx + 3, cy - 10, 2.5, 2, 'rgba(0,0,0,0.4)');
+
+  // === SHIBA SMILE ===
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 6);
+  ctx.quadraticCurveTo(cx - 18, cy + 10, cx - 30, cy - 2);
+  ctx.moveTo(cx, cy - 6);
+  ctx.quadraticCurveTo(cx + 18, cy + 10, cx + 30, cy - 2);
+  ctx.stroke();
 })();
 
 // ══════════════════════════════════════
@@ -357,129 +824,273 @@ function drawTriangle(ctx, x1,y1, x2,y2, x3,y3, color) {
   const c = document.getElementById('dropje-canvas');
   const ctx = c.getContext('2d');
   const W = c.width, H = c.height;
+  fillBg(ctx, W, H);
 
-  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
-  bg.addColorStop(0, '#1a2744');
-  bg.addColorStop(1, '#0d1b36');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  const cx = W/2, cy = H/2 + 15;
+  const cx = W/2, cy = H/2 + 30;
   const black = '#1c1c1c';
-  const darkSheen = '#282828';
-  const brown = '#8B4513';
+  const blackLight = '#2d2d2d';
+  const blackSheen = '#3a3a3a';
+  const brown = '#8B5E3C';
+  const brownLight = '#A0724E';
 
-  // Tail — thick otter tail (Lab style), slightly wagging
+  // === TAIL — thick otter tail ===
   ctx.save();
-  ctx.translate(cx + 52, cy + 5);
-  ctx.rotate(-0.4);
-  ctx.fillStyle = black;
+  ctx.translate(cx + 90, cy + 5);
+  ctx.rotate(-0.5);
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(15, -30, 8, -50);
-  ctx.quadraticCurveTo(2, -52, -4, -48);
-  ctx.quadraticCurveTo(-8, -28, -6, 0);
+  ctx.moveTo(0, 12);
+  ctx.bezierCurveTo(12, -10, 20, -50, 14, -80);
+  ctx.quadraticCurveTo(10, -88, 4, -80);
+  ctx.bezierCurveTo(-2, -55, -8, -15, -8, 12);
   ctx.closePath();
+  const tailG = ctx.createLinearGradient(0, 12, 14, -80);
+  tailG.addColorStop(0, black);
+  tailG.addColorStop(0.5, blackLight);
+  tailG.addColorStop(1, black);
+  ctx.fillStyle = tailG;
   ctx.fill();
   ctx.restore();
 
-  // Body — bigger and stockier than Willow (Lab build)
-  drawEllipse(ctx, cx, cy + 18, 48, 38, black);
-  drawEllipse(ctx, cx, cy + 20, 42, 32, darkSheen);
+  // === BODY — stocky Lab build ===
+  solidEllipse(ctx, cx, cy + 72, 60, 14, 'rgba(0,0,0,0.3)');
+  gradEllipse(ctx, cx, cy + 28, 86, 62, blackSheen, black);
 
-  // Legs — thicker (Lab)
-  ctx.fillStyle = black;
-  ctx.fillRect(cx - 34, cy + 35, 16, 28);
-  ctx.fillRect(cx + 18, cy + 35, 16, 28);
-  ctx.fillRect(cx - 22, cy + 38, 14, 25);
-  ctx.fillRect(cx + 8, cy + 38, 14, 25);
-  // big paws
-  drawEllipse(ctx, cx - 26, cy + 63, 11, 6, darkSheen);
-  drawEllipse(ctx, cx + 26, cy + 63, 11, 6, darkSheen);
-  drawEllipse(ctx, cx - 15, cy + 63, 10, 6, darkSheen);
-  drawEllipse(ctx, cx + 15, cy + 63, 10, 6, darkSheen);
+  // Chest sheen
+  const chestG = ctx.createRadialGradient(cx, cy + 10, 8, cx, cy + 20, 50);
+  chestG.addColorStop(0, 'rgba(60,60,60,0.4)');
+  chestG.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = chestG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 10, 40, 50, 0, 0, Math.PI*2);
+  ctx.fill();
 
-  // Head — broader, rounder (Lab shape)
-  drawEllipse(ctx, cx, cy - 22, 38, 34, black);
-  // broader muzzle
-  drawEllipse(ctx, cx, cy - 10, 22, 17, darkSheen);
+  // Fur texture
+  furStrokes(ctx, cx, cy + 28, 82, 58, 60, 6, blackSheen, 0.12);
 
-  // Floppy ears! (key Lab feature — hang down)
-  // left ear
+  // === LEGS — thick Lab legs ===
+  // Back left
   ctx.fillStyle = black;
   ctx.beginPath();
-  ctx.ellipse(cx - 32, cy - 14, 14, 22, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.ellipse(cx - 32, cy - 12, 10, 18, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  // right ear
-  ctx.fillStyle = black;
-  ctx.beginPath();
-  ctx.ellipse(cx + 32, cy - 14, 14, 22, 0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.ellipse(cx + 32, cy - 12, 10, 18, 0.2, 0, Math.PI * 2);
+  ctx.moveTo(cx - 62, cy + 48);
+  ctx.quadraticCurveTo(cx - 68, cy + 75, cx - 60, cy + 96);
+  ctx.lineTo(cx - 42, cy + 96);
+  ctx.quadraticCurveTo(cx - 38, cy + 75, cx - 42, cy + 48);
+  ctx.closePath();
   ctx.fill();
 
-  // Head front (over ears)
-  drawEllipse(ctx, cx, cy - 25, 32, 28, black);
-  drawEllipse(ctx, cx, cy - 12, 20, 15, darkSheen);
-
-  // Eyes — warm brown, bigger and rounder (Labs have gentle eyes)
-  drawEye(ctx, cx - 13, cy - 28, 8, '#8B5E3C', 0.35);
-  drawEye(ctx, cx + 13, cy - 28, 8, '#8B5E3C', 0.35);
-
-  // Eyebrows — subtle lighter marks (some Labs have these)
-  ctx.fillStyle = '#2a2520';
+  // Back right
   ctx.beginPath();
-  ctx.ellipse(cx - 13, cy - 37, 6, 2.5, -0.1, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + 13, cy - 37, 6, 2.5, 0.1, 0, Math.PI * 2);
+  ctx.moveTo(cx + 62, cy + 48);
+  ctx.quadraticCurveTo(cx + 68, cy + 75, cx + 60, cy + 96);
+  ctx.lineTo(cx + 42, cy + 96);
+  ctx.quadraticCurveTo(cx + 38, cy + 75, cx + 42, cy + 48);
+  ctx.closePath();
   ctx.fill();
 
-  // Nose — big and blocky (Lab nose)
-  ctx.fillStyle = '#333';
+  // Front left
   ctx.beginPath();
-  ctx.roundRect(cx - 7, cy - 14, 14, 10, 4);
-  ctx.fill();
-  // nostrils
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.ellipse(cx - 3, cy - 8, 2, 1.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(cx + 3, cy - 8, 2, 1.5, 0, 0, Math.PI * 2);
+  ctx.moveTo(cx - 42, cy + 52);
+  ctx.quadraticCurveTo(cx - 48, cy + 75, cx - 42, cy + 98);
+  ctx.lineTo(cx - 26, cy + 98);
+  ctx.quadraticCurveTo(cx - 22, cy + 75, cx - 26, cy + 52);
+  ctx.closePath();
   ctx.fill();
 
-  // Mouth — happy open-mouth Lab expression
+  // Front right
+  ctx.beginPath();
+  ctx.moveTo(cx + 42, cy + 52);
+  ctx.quadraticCurveTo(cx + 48, cy + 75, cx + 42, cy + 98);
+  ctx.lineTo(cx + 26, cy + 98);
+  ctx.quadraticCurveTo(cx + 22, cy + 75, cx + 26, cy + 52);
+  ctx.closePath();
+  ctx.fill();
+
+  // Big paws
+  gradEllipse(ctx, cx - 51, cy + 98, 14, 8, blackLight, black);
+  gradEllipse(ctx, cx + 51, cy + 98, 14, 8, blackLight, black);
+  gradEllipse(ctx, cx - 34, cy + 100, 13, 8, blackLight, black);
+  gradEllipse(ctx, cx + 34, cy + 100, 13, 8, blackLight, black);
+
+  // === FLOPPY EARS (behind head) ===
+  // Left ear — hangs down (Lab signature!)
+  ctx.beginPath();
+  ctx.moveTo(cx - 48, cy - 54);
+  ctx.bezierCurveTo(cx - 72, cy - 50, cx - 80, cy - 18, cx - 70, cy + 4);
+  ctx.bezierCurveTo(cx - 62, cy + 16, cx - 50, cy + 10, cx - 44, cy - 4);
+  ctx.bezierCurveTo(cx - 38, cy - 18, cx - 38, cy - 40, cx - 48, cy - 54);
+  ctx.closePath();
+  let earG = ctx.createLinearGradient(cx - 48, cy - 54, cx - 70, cy + 4);
+  earG.addColorStop(0, blackLight);
+  earG.addColorStop(1, black);
+  ctx.fillStyle = earG;
+  ctx.fill();
+  // Ear inner
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, cy - 44);
+  ctx.bezierCurveTo(cx - 66, cy - 40, cx - 72, cy - 16, cx - 64, cy + 0);
+  ctx.bezierCurveTo(cx - 58, cy + 8, cx - 50, cy + 4, cx - 46, cy - 6);
+  ctx.bezierCurveTo(cx - 42, cy - 16, cx - 42, cy - 34, cx - 50, cy - 44);
+  ctx.closePath();
+  ctx.fillStyle = '#252525';
+  ctx.fill();
+
+  // Right ear
+  ctx.beginPath();
+  ctx.moveTo(cx + 48, cy - 54);
+  ctx.bezierCurveTo(cx + 72, cy - 50, cx + 80, cy - 18, cx + 70, cy + 4);
+  ctx.bezierCurveTo(cx + 62, cy + 16, cx + 50, cy + 10, cx + 44, cy - 4);
+  ctx.bezierCurveTo(cx + 38, cy - 18, cx + 38, cy - 40, cx + 48, cy - 54);
+  ctx.closePath();
+  earG = ctx.createLinearGradient(cx + 48, cy - 54, cx + 70, cy + 4);
+  earG.addColorStop(0, blackLight);
+  earG.addColorStop(1, black);
+  ctx.fillStyle = earG;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + 50, cy - 44);
+  ctx.bezierCurveTo(cx + 66, cy - 40, cx + 72, cy - 16, cx + 64, cy + 0);
+  ctx.bezierCurveTo(cx + 58, cy + 8, cx + 50, cy + 4, cx + 46, cy - 6);
+  ctx.bezierCurveTo(cx + 42, cy - 16, cx + 42, cy - 34, cx + 50, cy - 44);
+  ctx.closePath();
+  ctx.fillStyle = '#252525';
+  ctx.fill();
+
+  // === HEAD — broad Lab skull ===
+  gradEllipse(ctx, cx, cy - 38, 66, 58, blackSheen, black);
+
+  // Broad muzzle
+  gradEllipse(ctx, cx, cy - 16, 32, 24, blackLight, black);
+
+  // Muzzle front — slight lighter area
+  const muzzG = ctx.createRadialGradient(cx, cy - 14, 4, cx, cy - 14, 22);
+  muzzG.addColorStop(0, 'rgba(55,55,55,0.5)');
+  muzzG.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = muzzG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 14, 22, 18, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Fur texture on head
+  furStrokes(ctx, cx, cy - 38, 62, 54, 50, 5, blackSheen, 0.1);
+
+  // === EYEBROWS — subtle tan marks ===
+  ctx.save();
+  const brow1 = ctx.createRadialGradient(cx - 22, cy - 60, 2, cx - 22, cy - 60, 10);
+  brow1.addColorStop(0, 'rgba(80,65,50,0.5)');
+  brow1.addColorStop(1, 'rgba(80,65,50,0)');
+  ctx.fillStyle = brow1;
+  ctx.beginPath();
+  ctx.ellipse(cx - 22, cy - 60, 10, 4, -0.15, 0, Math.PI*2);
+  ctx.fill();
+
+  const brow2 = ctx.createRadialGradient(cx + 22, cy - 60, 2, cx + 22, cy - 60, 10);
+  brow2.addColorStop(0, 'rgba(80,65,50,0.5)');
+  brow2.addColorStop(1, 'rgba(80,65,50,0)');
+  ctx.fillStyle = brow2;
+  ctx.beginPath();
+  ctx.ellipse(cx + 22, cy - 60, 10, 4, 0.15, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // === EYES — warm brown, gentle ===
+  drawRealisticEye(ctx, cx - 22, cy - 48, 14, 12, brownLight, '#6B4226', 0.38, -0.05);
+  drawRealisticEye(ctx, cx + 22, cy - 48, 14, 12, brownLight, '#6B4226', 0.38, 0.05);
+
+  // Gentle eyelid droop (kind expression)
+  ctx.strokeStyle = 'rgba(28,28,28,0.8)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(cx - 22, cy - 50, 15, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + 22, cy - 50, 15, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.stroke();
+
+  // === NOSE — big and blocky Lab nose ===
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, cy - 18);
+  ctx.quadraticCurveTo(cx - 12, cy - 22, cx, cy - 24);
+  ctx.quadraticCurveTo(cx + 12, cy - 22, cx + 10, cy - 18);
+  ctx.quadraticCurveTo(cx + 12, cy - 10, cx, cy - 8);
+  ctx.quadraticCurveTo(cx - 12, cy - 10, cx - 10, cy - 18);
+  ctx.closePath();
+  const noseG = ctx.createLinearGradient(cx, cy - 24, cx, cy - 8);
+  noseG.addColorStop(0, '#333');
+  noseG.addColorStop(0.5, '#2a2a2a');
+  noseG.addColorStop(1, '#222');
+  ctx.fillStyle = noseG;
+  ctx.fill();
+
+  // Nose texture dots
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = '#444';
+  for (let i = 0; i < 15; i++) {
+    const nx = cx + (Math.random() - 0.5) * 16;
+    const ny = cy - 18 + (Math.random() - 0.5) * 10;
+    ctx.beginPath();
+    ctx.arc(nx, ny, 0.8, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Nose shine
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.ellipse(cx - 3, cy - 20, 4, 2.5, -0.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // Nostrils
+  solidEllipse(ctx, cx - 4, cy - 14, 3.5, 2.5, 'rgba(0,0,0,0.5)');
+  solidEllipse(ctx, cx + 4, cy - 14, 3.5, 2.5, 'rgba(0,0,0,0.5)');
+
+  // === MOUTH — happy Lab grin ===
   ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 8);
+  ctx.quadraticCurveTo(cx - 22, cy + 10, cx - 34, cy);
+  ctx.moveTo(cx, cy - 8);
+  ctx.quadraticCurveTo(cx + 22, cy + 10, cx + 34, cy);
+  ctx.stroke();
+
+  // === TONGUE (goofy Lab!) ===
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - 6, cy - 2);
+  ctx.quadraticCurveTo(cx - 10, cy + 14, cx + 2, cy + 22);
+  ctx.quadraticCurveTo(cx + 14, cy + 16, cx + 10, cy - 2);
+  ctx.closePath();
+  const tongueG = ctx.createLinearGradient(cx, cy - 2, cx, cy + 22);
+  tongueG.addColorStop(0, '#E88090');
+  tongueG.addColorStop(1, '#D06070');
+  ctx.fillStyle = tongueG;
+  ctx.fill();
+  // Tongue center line
+  ctx.strokeStyle = 'rgba(180,70,80,0.5)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - 4);
-  ctx.quadraticCurveTo(cx - 14, cy + 8, cx - 20, cy + 2);
-  ctx.moveTo(cx, cy - 4);
-  ctx.quadraticCurveTo(cx + 14, cy + 8, cx + 20, cy + 2);
+  ctx.moveTo(cx + 2, cy);
+  ctx.quadraticCurveTo(cx + 1, cy + 10, cx + 2, cy + 18);
   ctx.stroke();
-
-  // Tongue sticking out (goofy Lab!)
-  ctx.fillStyle = '#E87687';
+  // Tongue highlight
+  ctx.fillStyle = 'rgba(255,200,200,0.3)';
   ctx.beginPath();
-  ctx.ellipse(cx + 3, cy + 4, 6, 8, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(cx - 1, cy + 6, 4, 6, -0.1, 0, Math.PI*2);
   ctx.fill();
-  ctx.fillStyle = '#D4606F';
-  ctx.beginPath();
-  ctx.moveTo(cx + 3, cy + 0);
-  ctx.lineTo(cx + 3, cy + 10);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = '#D4606F';
-  ctx.stroke();
+  ctx.restore();
 
-  // Subtle chest spot (some black Labs have a tiny white chest patch)
-  drawEllipse(ctx, cx, cy + 6, 5, 4, '#2a2828');
+  // Subtle chest patch (some black Labs have this)
+  ctx.save();
+  const patchG = ctx.createRadialGradient(cx, cy + 8, 2, cx, cy + 8, 10);
+  patchG.addColorStop(0, 'rgba(50,48,45,0.4)');
+  patchG.addColorStop(1, 'rgba(28,28,28,0)');
+  ctx.fillStyle = patchG;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 8, 8, 6, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
 })();
 </script>
 </body>
