@@ -1066,6 +1066,15 @@ class RhythmLesson {
     this.demoPlaying = false;
     this.demoNotes = [];
     this.demoIndex = 0;
+    
+    this.countingIn = false;
+    this.countInBeat = 0;
+  }
+  
+  startCountIn() {
+    this.countingIn = true;
+    this.countInBeat = 0;
+    this.playbackTime = -0.01; // Start just before beat 0
   }
   
   setupLesson() {
@@ -1156,11 +1165,31 @@ class RhythmLesson {
       // End demo
       if (this.playbackTime >= 4 * this.beatDuration + 0.5) {
         this.demoPlaying = false;
+        this.startCountIn();
+      }
+    }
+    
+    // Count-in phase
+    if (this.countingIn) {
+      this.playbackTime += dt;
+      
+      // Play count-in clicks
+      const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
+      const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
+      
+      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < 4) {
+        Audio.playMetronome(currentBeat === 0);
+        this.countInBeat = currentBeat + 1;
+      }
+      
+      // End count-in, start practice
+      if (this.playbackTime >= 4 * this.beatDuration) {
+        this.countingIn = false;
         this.phase = 'practice';
         this.isPlaying = true;
-        this.playbackTime = -1; // Give a beat of preparation
+        this.playbackTime = 0;
         this.playerTaps = [];
-        this.expectedTaps = [...pattern.beats];
+        this.expectedTaps = [...this.patterns[this.currentPattern].beats];
       }
     }
     
@@ -1392,7 +1421,18 @@ class RhythmLesson {
     ctx.fillStyle = this.isPlaying ? '#fff' : COLORS.textDim;
     ctx.font = '28px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText(this.isPlaying ? 'TAP HERE!' : 'Listen...', W/2, tapY + 100);
+    
+    // Show count-in or tap prompt
+    if (this.countingIn) {
+      ctx.fillStyle = COLORS.cube;
+      ctx.font = 'bold 72px Georgia';
+      ctx.fillText(this.countInBeat || '', W/2, tapY + 110);
+      ctx.font = '24px Georgia';
+      ctx.fillStyle = COLORS.textDim;
+      ctx.fillText('Get ready...', W/2, tapY + 160);
+    } else {
+      ctx.fillText(this.isPlaying ? 'TAP HERE!' : 'Listen...', W/2, tapY + 100);
+    }
     
     // Player taps visualization
     for (const tap of this.playerTaps) {
@@ -1417,7 +1457,7 @@ class RhythmLesson {
     }
     
     // Demo/Retry button
-    if (!this.isPlaying && !this.demoPlaying) {
+    if (!this.isPlaying && !this.demoPlaying && !this.countingIn) {
       const btnText = this.phase === 'demo' || this.feedback?.type === 'retry' ? '▶ Listen Again' : '▶ Play Demo';
       drawButton(ctx, W/2 - 100, 820, 200, 50, btnText, COLORS.cube, false);
     }
