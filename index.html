@@ -3,76 +3,484 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Purrgatory</title>
+<title>Purrgatory - Character Design</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #1a1a2e;
-    color: #eee;
-    font-family: 'Georgia', serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    text-align: center;
-    padding: 2rem;
-  }
-  h1 {
-    font-size: 3rem;
-    color: #e94560;
-    margin-bottom: 1rem;
-    text-shadow: 0 0 20px rgba(233,69,96,0.5);
-  }
-  .characters {
-    display: flex;
-    gap: 2rem;
-    margin: 2rem 0;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .character {
-    background: #16213e;
-    border-radius: 1rem;
-    padding: 1.5rem;
-    width: 140px;
-    border: 2px solid #0f3460;
-    transition: transform 0.3s;
-  }
-  .character:active { transform: scale(0.95); }
-  .character .icon { font-size: 3rem; margin-bottom: 0.5rem; }
-  .character .name { font-size: 1.1rem; color: #e94560; font-weight: bold; }
-  .character .desc { font-size: 0.75rem; color: #999; margin-top: 0.3rem; }
-  .status {
-    margin-top: 2rem;
-    padding: 1rem 2rem;
-    background: #0f3460;
-    border-radius: 0.5rem;
-    color: #53d769;
-    font-size: 1.2rem;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  color: #eee;
+  font-family: 'Georgia', serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+  overflow-x: hidden;
+}
+h1 {
+  font-size: 2rem;
+  color: #e94560;
+  margin: 0.5rem 0;
+  text-shadow: 0 0 20px rgba(233,69,96,0.4);
+}
+h2 { font-size: 1rem; color: #888; margin-bottom: 1rem; }
+.card {
+  background: #16213e;
+  border-radius: 1rem;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  width: 100%;
+  max-width: 360px;
+  border: 2px solid #0f3460;
+  text-align: center;
+}
+.card .name {
+  font-size: 1.4rem;
+  color: #e94560;
+  font-weight: bold;
+  margin-top: 0.5rem;
+}
+.card .desc {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin: 0.3rem 0 0.5rem;
+  line-height: 1.4;
+}
+.traits {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.trait {
+  background: #0f3460;
+  color: #7ec8e3;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+}
+canvas { border-radius: 0.75rem; background: #0d1b36; }
 </style>
 </head>
 <body>
-  <h1>🐾 Purrgatory 🐾</h1>
-  <p>The game is loading...</p>
-  <div class="characters">
-    <div class="character">
-      <div class="icon">🐱</div>
-      <div class="name">Cube</div>
-      <div class="desc">White Siamese kitten with a square tail</div>
-    </div>
-    <div class="character">
-      <div class="icon">🐕</div>
-      <div class="name">Willow</div>
-      <div class="desc">Black Shiba Inu</div>
-    </div>
-    <div class="character">
-      <div class="icon">🐕‍🦺</div>
-      <div class="name">Dropje</div>
-      <div class="desc">Black Labrador</div>
-    </div>
+<h1>Purrgatory</h1>
+<h2>Character Design Preview</h2>
+
+<div class="card">
+  <canvas id="cube-canvas" width="320" height="280"></canvas>
+  <div class="name">Cube</div>
+  <div class="desc">A tiny white Siamese kitten with bright blue eyes, a pink nose, and a uniquely square-shaped tail. Curious and mischievous.</div>
+  <div class="traits">
+    <span class="trait">Siamese</span>
+    <span class="trait">Square Tail</span>
+    <span class="trait">Curious</span>
+    <span class="trait">Mischievous</span>
   </div>
-  <div class="status">✅ Purrgatory is live! Game coming soon.</div>
+</div>
+
+<div class="card">
+  <canvas id="willow-canvas" width="320" height="280"></canvas>
+  <div class="name">Willow</div>
+  <div class="desc">A sleek black Shiba Inu with amber eyes, a fluffy curled tail, and the classic Shiba smile. Proud and loyal.</div>
+  <div class="traits">
+    <span class="trait">Shiba Inu</span>
+    <span class="trait">Curled Tail</span>
+    <span class="trait">Proud</span>
+    <span class="trait">Loyal</span>
+  </div>
+</div>
+
+<div class="card">
+  <canvas id="dropje-canvas" width="320" height="280"></canvas>
+  <div class="name">Dropje</div>
+  <div class="desc">A big-hearted black Labrador with warm brown eyes, floppy ears, and a thick otter tail. Gentle and goofy.</div>
+  <div class="traits">
+    <span class="trait">Labrador</span>
+    <span class="trait">Floppy Ears</span>
+    <span class="trait">Gentle</span>
+    <span class="trait">Goofy</span>
+  </div>
+</div>
+
+<script>
+// ── Drawing helpers ──
+function drawEllipse(ctx, cx, cy, rx, ry, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawCircle(ctx, cx, cy, r, color) {
+  drawEllipse(ctx, cx, cy, r, r, color);
+}
+function drawEye(ctx, cx, cy, r, irisColor, pupilScale) {
+  drawCircle(ctx, cx, cy, r, '#fff');
+  drawCircle(ctx, cx, cy, r * 0.6, irisColor);
+  drawCircle(ctx, cx, cy, r * (pupilScale || 0.3), '#111');
+  // highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.2, cy - r * 0.2, r * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawTriangle(ctx, x1,y1, x2,y2, x3,y3, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2,y2);
+  ctx.lineTo(x3,y3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ══════════════════════════════════════
+//  CUBE — White Siamese Kitten
+// ══════════════════════════════════════
+(function drawCube() {
+  const c = document.getElementById('cube-canvas');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  // Background - soft gradient
+  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
+  bg.addColorStop(0, '#1a2744');
+  bg.addColorStop(1, '#0d1b36');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2 + 15;
+  const cream = '#FAF0E6';
+  const darkPoint = '#8B7D6B';  // siamese dark points
+  const pinkNose = '#FFB6C1';
+
+  // Tail — SQUARE shape (unique feature!)
+  ctx.save();
+  ctx.translate(cx + 55, cy - 10);
+  ctx.rotate(0.15);
+  // tail stem
+  ctx.fillStyle = cream;
+  ctx.fillRect(-4, -20, 8, 30);
+  // square tip
+  ctx.fillStyle = darkPoint;
+  ctx.fillRect(-12, -38, 24, 24);
+  ctx.strokeStyle = '#6B5F4F';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-12, -38, 24, 24);
+  ctx.restore();
+
+  // Body
+  drawEllipse(ctx, cx, cy + 20, 38, 32, cream);
+
+  // Back paws
+  drawEllipse(ctx, cx - 22, cy + 50, 14, 8, cream);
+  drawEllipse(ctx, cx + 22, cy + 50, 14, 8, cream);
+  // dark paw tips (siamese points)
+  drawEllipse(ctx, cx - 24, cy + 52, 8, 5, darkPoint);
+  drawEllipse(ctx, cx + 24, cy + 52, 8, 5, darkPoint);
+
+  // Front paws
+  drawEllipse(ctx, cx - 15, cy + 48, 10, 7, cream);
+  drawEllipse(ctx, cx + 15, cy + 48, 10, 7, cream);
+  drawEllipse(ctx, cx - 16, cy + 50, 6, 4, darkPoint);
+  drawEllipse(ctx, cx + 16, cy + 50, 6, 4, darkPoint);
+
+  // Head
+  drawEllipse(ctx, cx, cy - 25, 34, 30, cream);
+
+  // Ears — pointed with dark tips
+  drawTriangle(ctx, cx-28, cy-48, cx-14, cy-68, cx-6, cy-44, cream);
+  drawTriangle(ctx, cx+28, cy-48, cx+14, cy-68, cx+6, cy-44, cream);
+  // dark ear tips (siamese)
+  drawTriangle(ctx, cx-24, cy-54, cx-14, cy-68, cx-10, cy-52, darkPoint);
+  drawTriangle(ctx, cx+24, cy-54, cx+14, cy-68, cx+10, cy-52, darkPoint);
+  // inner ear pink
+  drawTriangle(ctx, cx-22, cy-48, cx-15, cy-60, cx-10, cy-46, '#FFD1DC');
+  drawTriangle(ctx, cx+22, cy-48, cx+15, cy-60, cx+10, cy-46, '#FFD1DC');
+
+  // Siamese face mask (dark muzzle)
+  drawEllipse(ctx, cx, cy - 14, 16, 12, darkPoint);
+
+  // Eyes — big blue Siamese eyes
+  drawEye(ctx, cx - 13, cy - 30, 8, '#4A9BE8', 0.35);
+  drawEye(ctx, cx + 13, cy - 30, 8, '#4A9BE8', 0.35);
+
+  // Nose
+  ctx.fillStyle = pinkNose;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 17);
+  ctx.lineTo(cx - 4, cy - 13);
+  ctx.lineTo(cx + 4, cy - 13);
+  ctx.closePath();
+  ctx.fill();
+
+  // Mouth
+  ctx.strokeStyle = '#6B5F4F';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 13);
+  ctx.lineTo(cx - 5, cy - 8);
+  ctx.moveTo(cx, cy - 13);
+  ctx.lineTo(cx + 5, cy - 8);
+  ctx.stroke();
+
+  // Whiskers
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 0.8;
+  [[-1, -0.1], [-1, 0.1], [1, -0.1], [1, 0.1]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * 12, cy - 12);
+    ctx.lineTo(cx + dx * 40, cy - 12 + dy * 40);
+    ctx.stroke();
+  });
+
+  // Label the square tail
+  ctx.fillStyle = '#7ec8e3';
+  ctx.font = '11px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('square tail!', cx + 58, cy - 52);
+  ctx.beginPath();
+  ctx.moveTo(cx + 58, cy - 48);
+  ctx.lineTo(cx + 55, cy - 35);
+  ctx.strokeStyle = '#7ec8e3';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+})();
+
+// ══════════════════════════════════════
+//  WILLOW — Black Shiba Inu
+// ══════════════════════════════════════
+(function drawWillow() {
+  const c = document.getElementById('willow-canvas');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
+  bg.addColorStop(0, '#1a2744');
+  bg.addColorStop(1, '#0d1b36');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2 + 15;
+  const black = '#1a1a1a';
+  const darkGray = '#2a2a2a';
+  const tan = '#3a3530'; // subtle tan markings on black shiba
+  const amber = '#E8A317';
+
+  // Curled tail (Shiba style)
+  ctx.strokeStyle = black;
+  ctx.lineWidth = 12;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cx + 48, cy - 15, 20, Math.PI * 1.2, Math.PI * 2.8);
+  ctx.stroke();
+  ctx.strokeStyle = darkGray;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.arc(cx + 48, cy - 15, 20, Math.PI * 1.2, Math.PI * 2.8);
+  ctx.stroke();
+
+  // Body
+  drawEllipse(ctx, cx, cy + 20, 42, 35, black);
+  drawEllipse(ctx, cx, cy + 22, 36, 28, darkGray);
+
+  // Legs
+  // back
+  ctx.fillStyle = black;
+  ctx.fillRect(cx - 30, cy + 35, 14, 25);
+  ctx.fillRect(cx + 16, cy + 35, 14, 25);
+  // front
+  ctx.fillRect(cx - 20, cy + 38, 12, 22);
+  ctx.fillRect(cx + 8, cy + 38, 12, 22);
+  // paws
+  drawEllipse(ctx, cx - 23, cy + 60, 9, 5, darkGray);
+  drawEllipse(ctx, cx + 23, cy + 60, 9, 5, darkGray);
+  drawEllipse(ctx, cx - 14, cy + 60, 8, 5, darkGray);
+  drawEllipse(ctx, cx + 14, cy + 60, 8, 5, darkGray);
+
+  // Head — Shiba shape (rounder, fox-like)
+  drawEllipse(ctx, cx, cy - 22, 36, 32, black);
+  // cheeks (shiba puff)
+  drawEllipse(ctx, cx - 18, cy - 10, 18, 15, darkGray);
+  drawEllipse(ctx, cx + 18, cy - 10, 18, 15, darkGray);
+  // face center
+  drawEllipse(ctx, cx, cy - 15, 20, 18, darkGray);
+
+  // Ears — pointed Shiba ears
+  drawTriangle(ctx, cx-30, cy-44, cx-18, cy-72, cx-4, cy-40, black);
+  drawTriangle(ctx, cx+30, cy-44, cx+18, cy-72, cx+4, cy-40, black);
+  // inner ears
+  drawTriangle(ctx, cx-24, cy-46, cx-18, cy-64, cx-10, cy-42, '#2d2520');
+  drawTriangle(ctx, cx+24, cy-46, cx+18, cy-64, cx+10, cy-42, '#2d2520');
+
+  // Eyes — amber Shiba eyes (slightly squinting = Shiba smile)
+  drawEye(ctx, cx - 12, cy - 24, 7, amber, 0.4);
+  drawEye(ctx, cx + 12, cy - 24, 7, amber, 0.4);
+
+  // slight squint lines above eyes
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx - 12, cy - 24, 9, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + 12, cy - 24, 9, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+
+  // Nose
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 12);
+  ctx.lineTo(cx - 5, cy - 7);
+  ctx.lineTo(cx + 5, cy - 7);
+  ctx.closePath();
+  ctx.fill();
+
+  // Shiba smile / mouth
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 7);
+  ctx.quadraticCurveTo(cx - 12, cy + 4, cx - 18, cy - 2);
+  ctx.moveTo(cx, cy - 7);
+  ctx.quadraticCurveTo(cx + 12, cy + 4, cx + 18, cy - 2);
+  ctx.stroke();
+
+  // Subtle chest marking
+  drawEllipse(ctx, cx, cy + 8, 14, 10, '#2d2825');
+})();
+
+// ══════════════════════════════════════
+//  DROPJE — Black Labrador
+// ══════════════════════════════════════
+(function drawDropje() {
+  const c = document.getElementById('dropje-canvas');
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+
+  const bg = ctx.createRadialGradient(W/2, H/2, 20, W/2, H/2, 200);
+  bg.addColorStop(0, '#1a2744');
+  bg.addColorStop(1, '#0d1b36');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2 + 15;
+  const black = '#1c1c1c';
+  const darkSheen = '#282828';
+  const brown = '#8B4513';
+
+  // Tail — thick otter tail (Lab style), slightly wagging
+  ctx.save();
+  ctx.translate(cx + 52, cy + 5);
+  ctx.rotate(-0.4);
+  ctx.fillStyle = black;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(15, -30, 8, -50);
+  ctx.quadraticCurveTo(2, -52, -4, -48);
+  ctx.quadraticCurveTo(-8, -28, -6, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Body — bigger and stockier than Willow (Lab build)
+  drawEllipse(ctx, cx, cy + 18, 48, 38, black);
+  drawEllipse(ctx, cx, cy + 20, 42, 32, darkSheen);
+
+  // Legs — thicker (Lab)
+  ctx.fillStyle = black;
+  ctx.fillRect(cx - 34, cy + 35, 16, 28);
+  ctx.fillRect(cx + 18, cy + 35, 16, 28);
+  ctx.fillRect(cx - 22, cy + 38, 14, 25);
+  ctx.fillRect(cx + 8, cy + 38, 14, 25);
+  // big paws
+  drawEllipse(ctx, cx - 26, cy + 63, 11, 6, darkSheen);
+  drawEllipse(ctx, cx + 26, cy + 63, 11, 6, darkSheen);
+  drawEllipse(ctx, cx - 15, cy + 63, 10, 6, darkSheen);
+  drawEllipse(ctx, cx + 15, cy + 63, 10, 6, darkSheen);
+
+  // Head — broader, rounder (Lab shape)
+  drawEllipse(ctx, cx, cy - 22, 38, 34, black);
+  // broader muzzle
+  drawEllipse(ctx, cx, cy - 10, 22, 17, darkSheen);
+
+  // Floppy ears! (key Lab feature — hang down)
+  // left ear
+  ctx.fillStyle = black;
+  ctx.beginPath();
+  ctx.ellipse(cx - 32, cy - 14, 14, 22, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.ellipse(cx - 32, cy - 12, 10, 18, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // right ear
+  ctx.fillStyle = black;
+  ctx.beginPath();
+  ctx.ellipse(cx + 32, cy - 14, 14, 22, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.ellipse(cx + 32, cy - 12, 10, 18, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head front (over ears)
+  drawEllipse(ctx, cx, cy - 25, 32, 28, black);
+  drawEllipse(ctx, cx, cy - 12, 20, 15, darkSheen);
+
+  // Eyes — warm brown, bigger and rounder (Labs have gentle eyes)
+  drawEye(ctx, cx - 13, cy - 28, 8, '#8B5E3C', 0.35);
+  drawEye(ctx, cx + 13, cy - 28, 8, '#8B5E3C', 0.35);
+
+  // Eyebrows — subtle lighter marks (some Labs have these)
+  ctx.fillStyle = '#2a2520';
+  ctx.beginPath();
+  ctx.ellipse(cx - 13, cy - 37, 6, 2.5, -0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + 13, cy - 37, 6, 2.5, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nose — big and blocky (Lab nose)
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.roundRect(cx - 7, cy - 14, 14, 10, 4);
+  ctx.fill();
+  // nostrils
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.ellipse(cx - 3, cy - 8, 2, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx + 3, cy - 8, 2, 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth — happy open-mouth Lab expression
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 4);
+  ctx.quadraticCurveTo(cx - 14, cy + 8, cx - 20, cy + 2);
+  ctx.moveTo(cx, cy - 4);
+  ctx.quadraticCurveTo(cx + 14, cy + 8, cx + 20, cy + 2);
+  ctx.stroke();
+
+  // Tongue sticking out (goofy Lab!)
+  ctx.fillStyle = '#E87687';
+  ctx.beginPath();
+  ctx.ellipse(cx + 3, cy + 4, 6, 8, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#D4606F';
+  ctx.beginPath();
+  ctx.moveTo(cx + 3, cy + 0);
+  ctx.lineTo(cx + 3, cy + 10);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#D4606F';
+  ctx.stroke();
+
+  // Subtle chest spot (some black Labs have a tiny white chest patch)
+  drawEllipse(ctx, cx, cy + 6, 5, 4, '#2a2828');
+})();
+</script>
 </body>
 </html>
