@@ -76,12 +76,10 @@ const Audio = {
   },
   playFail() { this.playTick(200, 0.3); },
   
-  // Play a metronome click
   playMetronome(accent = false) {
     this.playTick(accent ? 1200 : 800, 0.05);
   },
   
-  // Play rhythm demonstration
   playRhythmNote() {
     if (!this.ctx) return;
     const osc = this.ctx.createOscillator();
@@ -94,6 +92,36 @@ const Audio = {
     gain.connect(this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.15);
+  },
+  
+  // Note frequencies for melody/harmony
+  noteFreq: {
+    'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
+    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
+    'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77
+  },
+  
+  playNote(note, dur = 0.3, type = 'triangle') {
+    if (!this.ctx) return;
+    const freq = this.noteFreq[note] || 440;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + dur);
+  },
+  
+  playChord(notes, dur = 0.5) {
+    notes.forEach(note => this.playNote(note, dur, 'sine'));
+  },
+  
+  playMelodyNote(note) {
+    this.playNote(note, 0.25, 'triangle');
   }
 };
 
@@ -115,20 +143,15 @@ function hitRect(px, py, rx, ry, rw, rh) {
 const COLORS = {
   bg: '#0a0a12',
   bgLight: '#12121f',
-  
-  // Teacher colors
-  cube: '#e94560',      // Pink/red - Rhythm
-  willow: '#f5a623',    // Amber - Harmony  
-  dropje: '#7ec8e3',    // Blue - Melody
-  
+  cube: '#e94560',
+  willow: '#f5a623',
+  dropje: '#7ec8e3',
   text: '#ffffff',
   textDim: '#888899',
   textMuted: '#555566',
-  
   success: '#4ade80',
   warning: '#fbbf24',
   error: '#ef4444',
-  
   card: '#1a1a2e',
   cardBorder: '#2a2a4e',
 };
@@ -191,18 +214,15 @@ function drawCube(ctx, x, y, scale, options = {}) {
   
   const cream = '#FAF0E6', darkPoint = '#8B7D6B';
   
-  // Body
   ctx.fillStyle = cream;
   ctx.beginPath();
   ctx.ellipse(0, 20, 45, 35, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Head
   ctx.beginPath();
   ctx.ellipse(0, -25, 40, 35, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Ears with dark tips
   ctx.beginPath();
   ctx.moveTo(-28, -45);
   ctx.quadraticCurveTo(-22, -80, -8, -70);
@@ -226,13 +246,11 @@ function drawCube(ctx, x, y, scale, options = {}) {
   ctx.quadraticCurveTo(8, -52, 12, -48);
   ctx.fill();
   
-  // Face mask
   ctx.fillStyle = darkPoint;
   ctx.beginPath();
   ctx.ellipse(0, -15, 18, 14, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eyes
   const eyeOpen = blink ? 0.1 : 1;
   ctx.fillStyle = '#5AAFE8';
   ctx.beginPath();
@@ -260,7 +278,6 @@ function drawCube(ctx, x, y, scale, options = {}) {
     ctx.fill();
   }
   
-  // Nose
   ctx.fillStyle = '#FFB6C1';
   ctx.beginPath();
   ctx.moveTo(0, -18);
@@ -269,7 +286,6 @@ function drawCube(ctx, x, y, scale, options = {}) {
   ctx.closePath();
   ctx.fill();
   
-  // Mouth (open when talking)
   if (talk) {
     ctx.fillStyle = '#333';
     ctx.beginPath();
@@ -277,7 +293,6 @@ function drawCube(ctx, x, y, scale, options = {}) {
     ctx.fill();
   }
   
-  // Square tail
   ctx.fillStyle = cream;
   ctx.fillRect(35, -20, 15, 10);
   ctx.fillRect(45, -55, 10, 40);
@@ -288,7 +303,7 @@ function drawCube(ctx, x, y, scale, options = {}) {
 }
 
 function drawWillow(ctx, x, y, scale, options = {}) {
-  const { bounce = 0, glow = 0 } = options;
+  const { bounce = 0, glow = 0, blink = false, talk = false } = options;
   
   ctx.save();
   ctx.translate(x, y + bounce);
@@ -301,25 +316,21 @@ function drawWillow(ctx, x, y, scale, options = {}) {
   
   const black = '#1c1c1c', tan = '#E8E4E0', amber = '#E8A317';
   
-  // Body
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.ellipse(0, 20, 48, 38, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Chest
   ctx.fillStyle = tan;
   ctx.beginPath();
   ctx.ellipse(0, 15, 25, 30, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Head
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.ellipse(0, -28, 42, 38, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Cheeks
   ctx.fillStyle = tan;
   ctx.beginPath();
   ctx.ellipse(-22, -15, 15, 12, 0, 0, Math.PI * 2);
@@ -328,12 +339,10 @@ function drawWillow(ctx, x, y, scale, options = {}) {
   ctx.ellipse(22, -15, 15, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Muzzle
   ctx.beginPath();
   ctx.ellipse(0, -8, 14, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Ears
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.moveTo(-32, -48);
@@ -346,42 +355,48 @@ function drawWillow(ctx, x, y, scale, options = {}) {
   ctx.quadraticCurveTo(8, -65, 10, -48);
   ctx.fill();
   
-  // Eyes
+  const eyeOpen = blink ? 0.1 : 1;
   ctx.fillStyle = amber;
   ctx.beginPath();
-  ctx.ellipse(-14, -35, 7, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(-14, -35, 7, 8 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(14, -35, 7, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(14, -35, 7, 8 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(-14, -35, 3, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(14, -35, 3, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (!blink) {
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(-14, -35, 3, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(14, -35, 3, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   
-  // Nose
   ctx.fillStyle = '#222';
   ctx.beginPath();
   ctx.ellipse(0, -10, 6, 4, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Shiba smile
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, -6);
-  ctx.quadraticCurveTo(-12, 5, -20, -2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(0, -6);
-  ctx.quadraticCurveTo(12, 5, 20, -2);
-  ctx.stroke();
+  if (talk) {
+    ctx.fillStyle = '#E88090';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(-12, 5, -20, -2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(12, 5, 20, -2);
+    ctx.stroke();
+  }
   
-  // Curled tail
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.moveTo(40, 10);
@@ -393,7 +408,7 @@ function drawWillow(ctx, x, y, scale, options = {}) {
 }
 
 function drawDropje(ctx, x, y, scale, options = {}) {
-  const { bounce = 0, glow = 0 } = options;
+  const { bounce = 0, glow = 0, blink = false, talk = false } = options;
   
   ctx.save();
   ctx.translate(x, y + bounce);
@@ -406,18 +421,15 @@ function drawDropje(ctx, x, y, scale, options = {}) {
   
   const black = '#1c1c1c', brown = '#A0724E';
   
-  // Body
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.ellipse(0, 20, 52, 40, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Head
   ctx.beginPath();
   ctx.ellipse(0, -30, 45, 40, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Floppy ears
   ctx.beginPath();
   ctx.ellipse(-42, -15, 12, 30, -0.3, 0, Math.PI * 2);
   ctx.fill();
@@ -425,50 +437,56 @@ function drawDropje(ctx, x, y, scale, options = {}) {
   ctx.ellipse(42, -15, 12, 30, 0.3, 0, Math.PI * 2);
   ctx.fill();
   
-  // Muzzle
   ctx.beginPath();
   ctx.ellipse(0, -12, 22, 18, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eyes
+  const eyeOpen = blink ? 0.1 : 1;
   ctx.fillStyle = brown;
   ctx.beginPath();
-  ctx.ellipse(-16, -40, 9, 10, 0, 0, Math.PI * 2);
+  ctx.ellipse(-16, -40, 9, 10 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(16, -40, 9, 10, 0, 0, Math.PI * 2);
+  ctx.ellipse(16, -40, 9, 10 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(-16, -40, 4, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(16, -40, 4, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (!blink) {
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(-16, -40, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(16, -40, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-18, -42, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(14, -42, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
   
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(-18, -42, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(14, -42, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Nose
   ctx.fillStyle = '#333';
   ctx.beginPath();
   ctx.ellipse(0, -15, 10, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Tongue
-  ctx.fillStyle = '#E88090';
-  ctx.beginPath();
-  ctx.moveTo(-6, -5);
-  ctx.quadraticCurveTo(0, 15, 6, -5);
-  ctx.fill();
+  if (talk) {
+    ctx.fillStyle = '#E88090';
+    ctx.beginPath();
+    ctx.moveTo(-8, -5);
+    ctx.quadraticCurveTo(0, 20, 8, -5);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#E88090';
+    ctx.beginPath();
+    ctx.moveTo(-6, -5);
+    ctx.quadraticCurveTo(0, 15, 6, -5);
+    ctx.fill();
+  }
   
-  // Tail
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.moveTo(45, 15);
@@ -490,11 +508,8 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.rotate(Math.sin(wiggle) * 0.1);
   ctx.scale(scale, scale);
   
-  const wool = '#F5F5DC';  // Cream wool
-  const face = '#2a2a2a';  // Dark face
-  const pink = '#FFB6C1';  // Pink cheeks/ears
+  const wool = '#F5F5DC', face = '#2a2a2a', pink = '#FFB6C1';
   
-  // Fluffy wool body
   ctx.fillStyle = wool;
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2;
@@ -505,25 +520,21 @@ function drawBert(ctx, x, y, scale, options = {}) {
     ctx.fill();
   }
   
-  // Center wool
   ctx.beginPath();
   ctx.ellipse(0, 15, 30, 25, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Head wool poof
   ctx.beginPath();
   ctx.arc(-15, -35, 18, 0, Math.PI * 2);
   ctx.arc(15, -35, 18, 0, Math.PI * 2);
   ctx.arc(0, -45, 20, 0, Math.PI * 2);
   ctx.fill();
   
-  // Dark face
   ctx.fillStyle = face;
   ctx.beginPath();
   ctx.ellipse(0, -25, 22, 26, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Ears
   ctx.fillStyle = face;
   ctx.beginPath();
   ctx.ellipse(-32, -30, 12, 8, -0.5, 0, Math.PI * 2);
@@ -532,7 +543,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.ellipse(32, -30, 12, 8, 0.5, 0, Math.PI * 2);
   ctx.fill();
   
-  // Pink inner ears
   ctx.fillStyle = pink;
   ctx.beginPath();
   ctx.ellipse(-32, -30, 7, 4, -0.5, 0, Math.PI * 2);
@@ -541,7 +551,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.ellipse(32, -30, 7, 4, 0.5, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eyes - big and goofy
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.ellipse(-10, -30, 10, 12, 0, 0, Math.PI * 2);
@@ -550,7 +559,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.ellipse(10, -30, 10, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Pupils - looking at player
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.arc(-8, -28, 5, 0, Math.PI * 2);
@@ -559,7 +567,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.arc(12, -28, 5, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eye shine
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.arc(-10, -31, 2, 0, Math.PI * 2);
@@ -568,14 +575,12 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.arc(10, -31, 2, 0, Math.PI * 2);
   ctx.fill();
   
-  // Big goofy smile
   ctx.strokeStyle = '#fff';
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(0, -15, 14, 0.2, Math.PI - 0.2);
   ctx.stroke();
   
-  // Blush cheeks
   ctx.fillStyle = 'rgba(255, 150, 150, 0.5)';
   ctx.beginPath();
   ctx.ellipse(-18, -18, 8, 5, 0, 0, Math.PI * 2);
@@ -584,7 +589,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.ellipse(18, -18, 8, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Little legs
   ctx.fillStyle = face;
   ctx.fillRect(-25, 40, 10, 20);
   ctx.fillRect(15, 40, 10, 20);
@@ -603,18 +607,15 @@ function drawButton(ctx, x, y, w, h, text, color, hover = false) {
     ctx.shadowBlur = 20;
   }
   
-  // Button bg
   ctx.fillStyle = hover ? color : COLORS.card;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, 12);
   ctx.fill();
   
-  // Border
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
   ctx.stroke();
   
-  // Text
   ctx.fillStyle = hover ? '#fff' : color;
   ctx.font = 'bold 24px Georgia';
   ctx.textAlign = 'center';
@@ -639,7 +640,6 @@ function drawCard(ctx, x, y, w, h, color) {
 // ║  MUSIC NOTATION DRAWING                                           ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const Notation = {
-  // Draw a whole note
   drawWhole(ctx, x, y, size = 20) {
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
@@ -648,7 +648,6 @@ const Notation = {
     ctx.stroke();
   },
   
-  // Draw a half note
   drawHalf(ctx, x, y, size = 16, stemUp = true) {
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
@@ -656,31 +655,26 @@ const Notation = {
     ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Stem
     ctx.fillStyle = '#fff';
     const stemX = stemUp ? x + size - 2 : x - size + 2;
     const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
     ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
   },
   
-  // Draw a quarter note
   drawQuarter(ctx, x, y, size = 14, stemUp = true) {
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
     ctx.fill();
     
-    // Stem
     const stemX = stemUp ? x + size - 2 : x - size + 2;
     const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
     ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
   },
   
-  // Draw an eighth note
   drawEighth(ctx, x, y, size = 14, stemUp = true) {
     this.drawQuarter(ctx, x, y, size, stemUp);
     
-    // Flag
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 3;
     const stemX = stemUp ? x + size : x - size + 2;
@@ -697,20 +691,17 @@ const Notation = {
     ctx.stroke();
   },
   
-  // Draw a rest
   drawRest(ctx, x, y, type, size = 20) {
     ctx.fillStyle = '#fff';
     ctx.font = `${size * 2}px Georgia`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Use simple symbols for rests
     if (type === 'whole') {
       ctx.fillRect(x - size, y - 5, size * 2, 8);
     } else if (type === 'half') {
       ctx.fillRect(x - size, y, size * 2, 8);
     } else if (type === 'quarter') {
-      // Squiggly rest
       ctx.beginPath();
       ctx.moveTo(x - 5, y - 15);
       ctx.lineTo(x + 5, y - 5);
@@ -727,7 +718,6 @@ const Notation = {
     }
   },
   
-  // Draw a note by type
   drawNote(ctx, x, y, type, size = 14) {
     switch(type) {
       case 'whole': this.drawWhole(ctx, x, y, size + 6); break;
@@ -744,12 +734,8 @@ const Notation = {
 const Game = {
   screen: 'title',
   time: 0,
-  
-  // Teacher select
   selectedTeacher: null,
   teacherHover: -1,
-  
-  // Current lesson state
   lesson: null,
   
   update(dt) {
@@ -762,7 +748,6 @@ const Game = {
   },
   
   render(ctx) {
-    // Clear
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, W, H);
     
@@ -779,7 +764,6 @@ const Game = {
   renderTitle(ctx) {
     const t = this.time;
     
-    // Gradient background
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a0a2e');
     grad.addColorStop(0.5, '#16213e');
@@ -787,7 +771,6 @@ const Game = {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
-    // Stars
     for (let i = 0; i < 30; i++) {
       const x = (i * 137) % W;
       const y = (i * 97) % (H * 0.6);
@@ -798,7 +781,6 @@ const Game = {
       ctx.fill();
     }
     
-    // Title
     ctx.save();
     ctx.shadowColor = COLORS.cube;
     ctx.shadowBlur = 30 + 10 * Math.sin(t * 2);
@@ -808,19 +790,15 @@ const Game = {
     ctx.fillText('PURRGATORY', W/2, 200);
     ctx.restore();
     
-    // Subtitle
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '28px Georgia';
     ctx.textAlign = 'center';
     ctx.fillText('Music Academy', W/2, 260);
     
-    // Characters
-    const bounce = Math.sin(t * 2) * 8;
     drawCube(ctx, W/2 - 180, 500, 0.7, { bounce: Math.sin(t * 2) * 8 });
     drawWillow(ctx, W/2, 500, 0.7, { bounce: Math.sin(t * 2 + 1) * 8 });
     drawDropje(ctx, W/2 + 180, 500, 0.7, { bounce: Math.sin(t * 2 + 2) * 8 });
     
-    // Teacher names
     ctx.font = '20px Georgia';
     ctx.fillStyle = COLORS.cube;
     ctx.fillText('Rhythm', W/2 - 180, 600);
@@ -829,12 +807,10 @@ const Game = {
     ctx.fillStyle = COLORS.dropje;
     ctx.fillText('Melody', W/2 + 180, 600);
     
-    // Start button
     const btnY = 750;
     const hover = this.teacherHover === 99;
     drawButton(ctx, W/2 - 120, btnY, 240, 60, 'START LEARNING', COLORS.cube, hover);
     
-    // Tagline
     ctx.fillStyle = COLORS.textMuted;
     ctx.font = '18px Georgia';
     ctx.fillText('Three teachers. Three disciplines. One musical journey.', W/2, 880);
@@ -843,71 +819,41 @@ const Game = {
   renderTeacherSelect(ctx) {
     const t = this.time;
     
-    // Background
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a0a2e');
     grad.addColorStop(1, '#0d1b36');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
-    // Title
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 42px Georgia';
     ctx.textAlign = 'center';
     ctx.fillText('Choose Your Teacher', W/2, 80);
     
-    // Teacher cards
     const teachers = [
-      {
-        id: 'cube',
-        name: 'Cube',
-        title: 'Rhythm Sensei',
-        desc: 'Learn to read and feel the beat. Master note values, time signatures, and rhythmic patterns.',
-        color: COLORS.cube,
-        draw: drawCube,
-      },
-      {
-        id: 'willow', 
-        name: 'Willow',
-        title: 'Harmony Master',
-        desc: 'Discover the art of chords and scales. Build harmonic progressions and train your ear.',
-        color: COLORS.willow,
-        draw: drawWillow,
-        locked: true,
-      },
-      {
-        id: 'dropje',
-        name: 'Dropje', 
-        title: 'Melody Maker',
-        desc: 'Explore melodic patterns and composition. Play by ear and create your own tunes.',
-        color: COLORS.dropje,
-        draw: drawDropje,
-        locked: true,
-      },
+      { id: 'cube', name: 'Cube', title: 'Rhythm Sensei', desc: 'Learn to read and feel the beat. Master note values, time signatures, and rhythmic patterns.', color: COLORS.cube, draw: drawCube },
+      { id: 'willow', name: 'Willow', title: 'Harmony Master', desc: 'Discover the art of chords and scales. Build harmonic progressions and train your ear.', color: COLORS.willow, draw: drawWillow },
+      { id: 'dropje', name: 'Dropje', title: 'Melody Maker', desc: 'Explore melodic patterns and composition. Play by ear and create your own tunes.', color: COLORS.dropje, draw: drawDropje },
     ];
     
     teachers.forEach((teacher, i) => {
       const cardY = 150 + i * 320;
-      const hover = this.teacherHover === i && !teacher.locked;
+      const hover = this.teacherHover === i;
       const cardH = 280;
       
-      // Card
       ctx.save();
       if (hover) {
         ctx.shadowColor = teacher.color;
         ctx.shadowBlur = 20;
       }
-      if (teacher.locked) ctx.globalAlpha = 0.5;
       
       drawCard(ctx, 40, cardY, W - 80, cardH, hover ? teacher.color : COLORS.cardBorder);
       
-      // Character
       teacher.draw(ctx, 140, cardY + 130, 0.55, { 
         bounce: hover ? Math.sin(t * 4) * 5 : 0,
         glow: hover ? 0.5 : 0 
       });
       
-      // Text
       ctx.fillStyle = teacher.color;
       ctx.font = 'bold 32px Georgia';
       ctx.textAlign = 'left';
@@ -919,7 +865,6 @@ const Game = {
       
       ctx.fillStyle = COLORS.text;
       ctx.font = '16px Georgia';
-      // Word wrap description
       const words = teacher.desc.split(' ');
       let line = '';
       let lineY = cardY + 130;
@@ -937,24 +882,9 @@ const Game = {
       }
       ctx.fillText(line, 230, lineY);
       
-      // Locked overlay
-      if (teacher.locked) {
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath();
-        ctx.roundRect(40, cardY, W - 80, cardH, 16);
-        ctx.fill();
-        
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = COLORS.textMuted;
-        ctx.font = 'bold 24px Georgia';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔒 Coming Soon', W/2, cardY + cardH/2);
-      }
-      
       ctx.restore();
     });
     
-    // Back button
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
     ctx.textAlign = 'left';
@@ -964,34 +894,31 @@ const Game = {
   renderLessonSelect(ctx) {
     const t = this.time;
     
-    // Background with teacher color tint
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a0a1e');
     grad.addColorStop(1, '#0d0d1a');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
-    // Teacher header
-    drawCube(ctx, 100, 100, 0.5, { bounce: Math.sin(t * 3) * 3 });
+    const teacherData = {
+      cube: { draw: drawCube, color: COLORS.cube, name: "Cube's Rhythm Class", sub: 'Master the art of rhythm notation' },
+      willow: { draw: drawWillow, color: COLORS.willow, name: "Willow's Harmony Class", sub: 'Build chords and train your ear' },
+      dropje: { draw: drawDropje, color: COLORS.dropje, name: "Dropje's Melody Class", sub: 'Play by ear and create tunes' }
+    };
     
-    ctx.fillStyle = COLORS.cube;
+    const td = teacherData[this.selectedTeacher];
+    td.draw(ctx, 100, 100, 0.5, { bounce: Math.sin(t * 3) * 3 });
+    
+    ctx.fillStyle = td.color;
     ctx.font = 'bold 36px Georgia';
     ctx.textAlign = 'left';
-    ctx.fillText('Cube\'s Rhythm Class', 180, 85);
+    ctx.fillText(td.name, 180, 85);
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
-    ctx.fillText('Master the art of rhythm notation', 180, 120);
+    ctx.fillText(td.sub, 180, 120);
     
-    // Lessons
-    const lessons = [
-      { id: 1, name: 'Quarter Notes', desc: 'The heartbeat of music', unlocked: true },
-      { id: 2, name: 'Half & Whole Notes', desc: 'Learning to hold the beat', unlocked: true },
-      { id: 3, name: 'Eighth Notes', desc: 'Double time excitement', unlocked: true },
-      { id: 4, name: 'Rests', desc: 'The power of silence', unlocked: false },
-      { id: 5, name: 'Mixed Rhythms', desc: 'Putting it all together', unlocked: false },
-      { id: 6, name: 'Time Signatures', desc: '4/4, 3/4, and beyond', unlocked: false },
-    ];
+    const lessons = this.getLessons();
     
     lessons.forEach((lesson, i) => {
       const y = 200 + i * 110;
@@ -1000,9 +927,8 @@ const Game = {
       ctx.save();
       if (!lesson.unlocked) ctx.globalAlpha = 0.4;
       
-      // Card
       if (hover) {
-        ctx.shadowColor = COLORS.cube;
+        ctx.shadowColor = td.color;
         ctx.shadowBlur = 15;
       }
       
@@ -1011,17 +937,15 @@ const Game = {
       ctx.roundRect(40, y, W - 80, 90, 12);
       ctx.fill();
       
-      ctx.strokeStyle = hover ? COLORS.cube : COLORS.cardBorder;
+      ctx.strokeStyle = hover ? td.color : COLORS.cardBorder;
       ctx.lineWidth = 2;
       ctx.stroke();
       
-      // Lesson number
-      ctx.fillStyle = hover ? COLORS.cube : COLORS.textDim;
+      ctx.fillStyle = hover ? td.color : COLORS.textDim;
       ctx.font = 'bold 36px Georgia';
       ctx.textAlign = 'center';
       ctx.fillText(lesson.id.toString(), 100, y + 52);
       
-      // Lesson info
       ctx.fillStyle = lesson.unlocked ? '#fff' : COLORS.textMuted;
       ctx.font = 'bold 24px Georgia';
       ctx.textAlign = 'left';
@@ -1031,7 +955,6 @@ const Game = {
       ctx.font = '18px Georgia';
       ctx.fillText(lesson.desc, 150, y + 68);
       
-      // Lock or stars
       if (!lesson.unlocked) {
         ctx.globalAlpha = 1;
         ctx.fillStyle = COLORS.textMuted;
@@ -1043,11 +966,41 @@ const Game = {
       ctx.restore();
     });
     
-    // Back button
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
     ctx.textAlign = 'left';
     ctx.fillText('← Back', 40, H - 40);
+  },
+  
+  getLessons() {
+    if (this.selectedTeacher === 'cube') {
+      return [
+        { id: 1, name: 'Quarter Notes', desc: 'The heartbeat of music', unlocked: true },
+        { id: 2, name: 'Half & Whole Notes', desc: 'Learning to hold the beat', unlocked: true },
+        { id: 3, name: 'Eighth Notes', desc: 'Double time excitement', unlocked: true },
+        { id: 4, name: 'Rests', desc: 'The power of silence', unlocked: true },
+        { id: 5, name: 'Mixed Rhythms', desc: 'Putting it all together', unlocked: true },
+        { id: 6, name: 'Time Signatures', desc: '4/4, 3/4, and beyond', unlocked: true },
+      ];
+    } else if (this.selectedTeacher === 'willow') {
+      return [
+        { id: 1, name: 'Major Chords', desc: 'Happy, bright sounds', unlocked: true },
+        { id: 2, name: 'Minor Chords', desc: 'Sad, moody vibes', unlocked: true },
+        { id: 3, name: 'Chord Recognition', desc: 'Major vs Minor ear training', unlocked: true },
+        { id: 4, name: 'The I-IV-V', desc: 'Most common progression', unlocked: true },
+        { id: 5, name: 'Seventh Chords', desc: 'Adding color and tension', unlocked: true },
+        { id: 6, name: 'Chord Progressions', desc: 'Building full sequences', unlocked: true },
+      ];
+    } else {
+      return [
+        { id: 1, name: 'Scale Steps', desc: 'Up and down the ladder', unlocked: true },
+        { id: 2, name: 'Intervals', desc: 'The distance between notes', unlocked: true },
+        { id: 3, name: 'Echo Melodies', desc: 'Repeat what you hear', unlocked: true },
+        { id: 4, name: 'Pattern Recognition', desc: 'Spot the melody', unlocked: true },
+        { id: 5, name: 'Melodic Dictation', desc: 'Write what you hear', unlocked: true },
+        { id: 6, name: 'Free Composition', desc: 'Create your own tune', unlocked: true },
+      ];
+    }
   },
   
   handleTap(x, y) {
@@ -1055,7 +1008,6 @@ const Game = {
     Audio.resume();
     
     if (this.screen === 'title') {
-      // Start button
       if (hitRect(x, y, W/2 - 120, 750, 240, 60)) {
         Audio.playClick();
         this.screen = 'teacherSelect';
@@ -1063,43 +1015,40 @@ const Game = {
       }
     }
     else if (this.screen === 'teacherSelect') {
-      // Back button
       if (x < 120 && y > H - 70) {
         Audio.playClick();
         this.screen = 'title';
         return;
       }
       
-      // Teacher cards
       const teachers = ['cube', 'willow', 'dropje'];
       for (let i = 0; i < 3; i++) {
         const cardY = 150 + i * 320;
         if (hitRect(x, y, 40, cardY, W - 80, 280)) {
-          if (i === 0) { // Only Cube unlocked
-            Audio.playClick();
-            this.selectedTeacher = teachers[i];
-            this.screen = 'lessonSelect';
-            spawnParticles(x, y, COLORS.cube, 12);
-          }
+          Audio.playClick();
+          this.selectedTeacher = teachers[i];
+          this.screen = 'lessonSelect';
+          spawnParticles(x, y, [COLORS.cube, COLORS.willow, COLORS.dropje][i], 12);
           break;
         }
       }
     }
     else if (this.screen === 'lessonSelect') {
-      // Back button
       if (x < 120 && y > H - 70) {
         Audio.playClick();
         this.screen = 'teacherSelect';
         return;
       }
       
-      // Lesson cards
-      for (let i = 0; i < 3; i++) { // First 3 lessons unlocked
+      const lessons = this.getLessons();
+      for (let i = 0; i < lessons.length; i++) {
+        if (!lessons[i].unlocked) continue;
         const ly = 200 + i * 110;
         if (hitRect(x, y, 40, ly, W - 80, 90)) {
           Audio.playClick();
           this.startLesson(i + 1);
-          spawnParticles(x, y, COLORS.cube, 15);
+          const colors = { cube: COLORS.cube, willow: COLORS.willow, dropje: COLORS.dropje };
+          spawnParticles(x, y, colors[this.selectedTeacher], 15);
           break;
         }
       }
@@ -1139,7 +1088,13 @@ const Game = {
   
   startLesson(lessonNum) {
     this.screen = 'lesson';
-    this.lesson = new RhythmLesson(lessonNum);
+    if (this.selectedTeacher === 'cube') {
+      this.lesson = new RhythmLesson(lessonNum);
+    } else if (this.selectedTeacher === 'willow') {
+      this.lesson = new HarmonyLesson(lessonNum);
+    } else {
+      this.lesson = new MelodyLesson(lessonNum);
+    }
   },
   
   endLesson() {
@@ -1149,16 +1104,17 @@ const Game = {
 };
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  RHYTHM LESSON                                                    ║
+// ║  RHYTHM LESSON (CUBE)                                             ║
 // ╚══════════════════════════════════════════════════════════════════╝
 class RhythmLesson {
   constructor(lessonNum) {
     this.lessonNum = lessonNum;
-    this.phase = 'intro'; // intro, demo, practice, complete
+    this.phase = 'intro';
     this.time = 0;
-    this.cubeAnim = { bounce: 0, blink: false, talk: false, blinkTimer: 3 };
+    this.teacherAnim = { bounce: 0, blink: false, talk: false, blinkTimer: 3 };
+    this.color = COLORS.cube;
+    this.teacherDraw = drawCube;
     
-    // Lesson content based on lesson number
     this.setupLesson();
     
     this.currentPattern = 0;
@@ -1183,98 +1139,105 @@ class RhythmLesson {
     this.countingIn = false;
     this.countInBeat = 0;
     
-    // Bert the distracting sheep
     this.bert = {
       active: false,
       x: -100,
       targetX: -100,
       y: 400,
-      timer: 2 + Math.random() * 3,
+      timer: 0.5 + Math.random() * 1,
       wiggle: 0,
       side: 'left'
     };
   }
   
+  setupLesson() {
+    const lessonData = {
+      1: {
+        title: 'Quarter Notes',
+        introText: ["Welcome! I'm Cube, your rhythm teacher.", "Let's start with quarter notes.", "A quarter note (♩) gets ONE beat.", "In 4/4 time, we count: 1, 2, 3, 4", "Tap along with the beat!"],
+        patterns: [
+          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+        ]
+      },
+      2: {
+        title: 'Half & Whole Notes',
+        introText: ["Great progress! Now let's slow down.", "A half note gets TWO beats.", "A whole note gets FOUR beats.", "Hold the note for its full value!", "Listen, then tap the rhythm."],
+        patterns: [
+          { notes: ['half', 'half'], beats: [0, 2] },
+          { notes: ['whole'], beats: [0] },
+          { notes: ['half', 'quarter', 'quarter'], beats: [0, 2, 3] },
+        ]
+      },
+      3: {
+        title: 'Eighth Notes',
+        introText: ["Time to speed up!", "An eighth note gets HALF a beat.", "Two eighths = one quarter note.", "We count: 1 & 2 & 3 & 4 &", "Feel the groove!"],
+        patterns: [
+          { notes: ['eighth', 'eighth', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 0.5, 1, 1.5, 2, 3] },
+          { notes: ['quarter', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 1, 1.5, 2, 3] },
+          { notes: ['eighth', 'eighth', 'quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 0.5, 1, 2, 2.5, 3] },
+        ]
+      },
+      4: {
+        title: 'Rests',
+        introText: ["Music needs silence too!", "A rest means DON'T play.", "Quarter rest = 1 beat of silence.", "Listen for the gaps!", "Tap only on the notes, not rests."],
+        patterns: [
+          { notes: ['quarter', 'rest', 'quarter', 'quarter'], beats: [0, 2, 3] },
+          { notes: ['quarter', 'quarter', 'rest', 'quarter'], beats: [0, 1, 3] },
+          { notes: ['rest', 'quarter', 'quarter', 'rest'], beats: [1, 2] },
+        ]
+      },
+      5: {
+        title: 'Mixed Rhythms',
+        introText: ["Let's mix it all together!", "Different note values in one bar.", "Stay focused on the beat!", "Count carefully.", "You've got this!"],
+        patterns: [
+          { notes: ['half', 'eighth', 'eighth', 'quarter'], beats: [0, 2, 2.5, 3] },
+          { notes: ['quarter', 'eighth', 'eighth', 'half'], beats: [0, 1, 1.5, 2] },
+          { notes: ['eighth', 'eighth', 'quarter', 'half'], beats: [0, 0.5, 1, 2] },
+        ]
+      },
+      6: {
+        title: 'Time Signatures',
+        introText: ["Not all music has 4 beats!", "3/4 time has THREE beats per bar.", "Think of a waltz: 1-2-3, 1-2-3", "The feel is totally different!", "Let's try it!"],
+        patterns: [
+          { notes: ['quarter', 'quarter', 'quarter'], beats: [0, 1, 2], timeSig: '3/4' },
+          { notes: ['half', 'quarter'], beats: [0, 2], timeSig: '3/4' },
+          { notes: ['quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 1, 1.5, 2], timeSig: '3/4' },
+        ]
+      }
+    };
+    
+    const data = lessonData[this.lessonNum];
+    this.title = data.title;
+    this.introText = data.introText;
+    this.patterns = data.patterns;
+    this.introIndex = 0;
+  }
+  
   startCountIn() {
     this.countingIn = true;
     this.countInBeat = 0;
-    this.playbackTime = -0.01; // Start just before beat 0
-  }
-  
-  setupLesson() {
-    if (this.lessonNum === 1) {
-      this.title = 'Quarter Notes';
-      this.introText = [
-        "Welcome! I'm Cube, your rhythm teacher.",
-        "Let's start with quarter notes.",
-        "A quarter note (♩) gets ONE beat.",
-        "In 4/4 time, we count: 1, 2, 3, 4",
-        "Tap along with the beat!"
-      ];
-      this.noteTypes = ['quarter'];
-      this.patterns = [
-        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
-        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
-        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
-      ];
-    }
-    else if (this.lessonNum === 2) {
-      this.title = 'Half & Whole Notes';
-      this.introText = [
-        "Great progress! Now let's slow down.",
-        "A half note (𝅗𝅥) gets TWO beats.",
-        "A whole note (𝅝) gets FOUR beats.",
-        "Hold the note for its full value!",
-        "Listen, then tap the rhythm."
-      ];
-      this.noteTypes = ['half', 'whole', 'quarter'];
-      this.patterns = [
-        { notes: ['half', 'half'], beats: [0, 2] },
-        { notes: ['whole'], beats: [0] },
-        { notes: ['half', 'quarter', 'quarter'], beats: [0, 2, 3] },
-      ];
-    }
-    else if (this.lessonNum === 3) {
-      this.title = 'Eighth Notes';
-      this.introText = [
-        "Time to speed up!",
-        "An eighth note (♪) gets HALF a beat.",
-        "Two eighths = one quarter note.",
-        "We count: 1 & 2 & 3 & 4 &",
-        "Feel the groove!"
-      ];
-      this.noteTypes = ['eighth', 'quarter'];
-      this.patterns = [
-        { notes: ['eighth', 'eighth', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 0.5, 1, 1.5, 2, 3] },
-        { notes: ['quarter', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 1, 1.5, 2, 3] },
-        { notes: ['eighth', 'eighth', 'quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 0.5, 1, 2, 2.5, 3] },
-      ];
-    }
-    
-    this.introIndex = 0;
+    this.playbackTime = -0.01;
   }
   
   update(dt) {
     this.time += dt;
     
-    // Cube animation
-    this.cubeAnim.bounce = Math.sin(this.time * 3) * 5;
-    this.cubeAnim.blinkTimer -= dt;
-    if (this.cubeAnim.blinkTimer <= 0) {
-      this.cubeAnim.blink = true;
-      setTimeout(() => this.cubeAnim.blink = false, 150);
-      this.cubeAnim.blinkTimer = 3 + Math.random() * 2;
+    this.teacherAnim.bounce = Math.sin(this.time * 3) * 5;
+    this.teacherAnim.blinkTimer -= dt;
+    if (this.teacherAnim.blinkTimer <= 0) {
+      this.teacherAnim.blink = true;
+      setTimeout(() => this.teacherAnim.blink = false, 150);
+      this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
     }
     
-    // Talking animation during intro
-    this.cubeAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
+    this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
     
-    // Demo playback
     if (this.demoPlaying) {
       this.playbackTime += dt;
       const pattern = this.patterns[this.currentPattern];
       
-      // Play notes at the right time
       while (this.demoIndex < pattern.beats.length) {
         const noteTime = pattern.beats[this.demoIndex] * this.beatDuration;
         if (this.playbackTime >= noteTime) {
@@ -1286,28 +1249,26 @@ class RhythmLesson {
         }
       }
       
-      // End demo
-      if (this.playbackTime >= 4 * this.beatDuration + 0.5) {
+      const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
+      if (this.playbackTime >= totalBeats * this.beatDuration + 0.5) {
         this.demoPlaying = false;
         this.startCountIn();
       }
     }
     
-    // Count-in phase
     if (this.countingIn) {
       this.playbackTime += dt;
       
-      // Play count-in clicks
       const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
       const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
+      const totalBeats = this.patterns[this.currentPattern].timeSig === '3/4' ? 3 : 4;
       
-      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < 4) {
+      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < totalBeats) {
         Audio.playMetronome(currentBeat === 0);
         this.countInBeat = currentBeat + 1;
       }
       
-      // End count-in, start practice
-      if (this.playbackTime >= 4 * this.beatDuration) {
+      if (this.playbackTime >= totalBeats * this.beatDuration) {
         this.countingIn = false;
         this.phase = 'practice';
         this.isPlaying = true;
@@ -1317,45 +1278,40 @@ class RhythmLesson {
       }
     }
     
-    // Practice playback (metronome)
     if (this.isPlaying && this.phase === 'practice') {
       this.playbackTime += dt;
       
-      // Metronome on each beat
+      const pattern = this.patterns[this.currentPattern];
+      const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
       const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
       const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
       
-      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < 4) {
+      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < totalBeats) {
         Audio.playMetronome(currentBeat === 0);
       }
       
-      // End of practice bar
-      if (this.playbackTime >= 4 * this.beatDuration + 0.3) {
+      if (this.playbackTime >= totalBeats * this.beatDuration + 0.3) {
         this.evaluateAttempt();
       }
     }
     
-    // Update demo note animations
     for (let i = this.demoNotes.length - 1; i >= 0; i--) {
       this.demoNotes[i].time -= dt * 2;
       if (this.demoNotes[i].time <= 0) this.demoNotes.splice(i, 1);
     }
     
-    // Feedback timer
     if (this.feedback) {
       this.feedbackTimer -= dt;
       if (this.feedbackTimer <= 0) {
         const wasSuccess = this.feedback.type === 'success';
         this.feedback = null;
         
-        // Auto-progress after success
         if (wasSuccess && this.phase !== 'complete') {
           this.startDemo();
         }
       }
     }
     
-    // Bert the distracting sheep
     this.updateBert(dt);
   }
   
@@ -1363,12 +1319,10 @@ class RhythmLesson {
     const bert = this.bert;
     bert.wiggle += dt * 8;
     
-    // Only appear during practice
     if (this.phase === 'practice' && this.isPlaying) {
       bert.timer -= dt;
       
       if (!bert.active && bert.timer <= 0) {
-        // Bert appears!
         bert.active = true;
         bert.side = Math.random() > 0.5 ? 'right' : 'left';
         bert.x = bert.side === 'left' ? -80 : W + 80;
@@ -1377,28 +1331,22 @@ class RhythmLesson {
       }
       
       if (bert.active) {
-        // Slide in
         bert.x = lerp(bert.x, bert.targetX, dt * 5);
         
-        // Check if fully visible, then start retreat timer
         const atTarget = Math.abs(bert.x - bert.targetX) < 5;
         if (atTarget && bert.timer < -1.5) {
-          // Retreat!
           bert.targetX = bert.side === 'left' ? -100 : W + 100;
         }
         
-        // Check if gone
-        if ((bert.side === 'left' && bert.x < -70) || 
-            (bert.side === 'right' && bert.x > W + 70)) {
+        if ((bert.side === 'left' && bert.x < -70) || (bert.side === 'right' && bert.x > W + 70)) {
           bert.active = false;
-          bert.timer = 3 + Math.random() * 4; // Next appearance
+          bert.timer = 1 + Math.random() * 2;
         }
       }
     } else {
-      // Reset when not practicing
       bert.active = false;
       bert.x = -100;
-      bert.timer = 2 + Math.random() * 3;
+      bert.timer = 0.5 + Math.random() * 1;
     }
   }
   
@@ -1408,9 +1356,7 @@ class RhythmLesson {
     
     const pattern = this.patterns[this.currentPattern];
     const expected = pattern.beats;
-    
-    // Check if taps match expected beats (with tolerance)
-    const tolerance = 0.25; // quarter beat tolerance
+    const tolerance = 0.25;
     let hits = 0;
     
     for (const expBeat of expected) {
@@ -1427,7 +1373,6 @@ class RhythmLesson {
       Audio.playSuccess();
       spawnParticles(W/2, H/2, COLORS.success, 20);
       
-      // Move to next pattern or complete
       this.currentPattern++;
       if (this.currentPattern >= this.patterns.length) {
         this.phase = 'complete';
@@ -1441,15 +1386,13 @@ class RhythmLesson {
   }
   
   render(ctx) {
-    // Background
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#1a0a1e');
     grad.addColorStop(1, '#0a0a12');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
-    // Lesson title
-    ctx.fillStyle = COLORS.cube;
+    ctx.fillStyle = this.color;
     ctx.font = 'bold 28px Georgia';
     ctx.textAlign = 'center';
     ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
@@ -1462,7 +1405,6 @@ class RhythmLesson {
       this.renderComplete(ctx);
     }
     
-    // Back button (always visible)
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
     ctx.textAlign = 'left';
@@ -1470,63 +1412,53 @@ class RhythmLesson {
   }
   
   renderIntro(ctx) {
-    // Cube teacher
-    drawCube(ctx, W/2, 280, 1.2, this.cubeAnim);
+    this.teacherDraw(ctx, W/2, 280, 1.2, this.teacherAnim);
     
-    // Speech bubble
     const bubbleY = 450;
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
     ctx.roundRect(60, bubbleY, W - 120, 150, 20);
     ctx.fill();
-    ctx.strokeStyle = COLORS.cube;
+    ctx.strokeStyle = this.color;
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Bubble pointer
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
     ctx.moveTo(W/2 - 20, bubbleY);
     ctx.lineTo(W/2, bubbleY - 20);
     ctx.lineTo(W/2 + 20, bubbleY);
     ctx.fill();
-    ctx.strokeStyle = COLORS.cube;
+    ctx.strokeStyle = this.color;
     ctx.beginPath();
     ctx.moveTo(W/2 - 20, bubbleY);
     ctx.lineTo(W/2, bubbleY - 20);
     ctx.lineTo(W/2 + 20, bubbleY);
     ctx.stroke();
     
-    // Text
     ctx.fillStyle = '#fff';
     ctx.font = '24px Georgia';
     ctx.textAlign = 'center';
+    ctx.fillText(this.introText[this.introIndex], W/2, bubbleY + 85);
     
-    const text = this.introText[this.introIndex];
-    ctx.fillText(text, W/2, bubbleY + 85);
-    
-    // Progress dots
     for (let i = 0; i < this.introText.length; i++) {
-      ctx.fillStyle = i === this.introIndex ? COLORS.cube : COLORS.textMuted;
+      ctx.fillStyle = i === this.introIndex ? this.color : COLORS.textMuted;
       ctx.beginPath();
       ctx.arc(W/2 - (this.introText.length - 1) * 12 + i * 24, bubbleY + 130, 5, 0, Math.PI * 2);
       ctx.fill();
     }
     
-    // Continue button
     const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
-    drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, COLORS.cube, false);
+    drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
   }
   
   renderPractice(ctx) {
-    // Small Cube in corner
-    drawCube(ctx, 80, 130, 0.4, this.cubeAnim);
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
     
-    // Pattern display
     const pattern = this.patterns[this.currentPattern];
     const staffY = 280;
+    const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
     
-    // Staff lines
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
@@ -1536,27 +1468,27 @@ class RhythmLesson {
       ctx.stroke();
     }
     
-    // Time signature
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 40px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('4', 100, staffY - 8);
-    ctx.fillText('4', 100, staffY + 32);
+    const timeSig = pattern.timeSig || '4/4';
+    ctx.fillText(timeSig[0], 100, staffY - 8);
+    ctx.fillText(timeSig[2], 100, staffY + 32);
     
-    // Draw notes
     const noteStartX = 180;
-    const noteSpacing = (W - 240) / 4;
+    const noteSpacing = (W - 240) / totalBeats;
     
     for (let i = 0; i < pattern.beats.length; i++) {
       const beat = pattern.beats[i];
       const x = noteStartX + beat * noteSpacing;
       const noteType = pattern.notes[i];
       
-      // Highlight if demo is showing this note
+      if (noteType === 'rest') continue;
+      
       const demoNote = this.demoNotes.find(n => n.beat === beat);
       if (demoNote) {
         ctx.save();
-        ctx.shadowColor = COLORS.cube;
+        ctx.shadowColor = this.color;
         ctx.shadowBlur = 20 * demoNote.time;
         Notation.drawNote(ctx, x, staffY, noteType);
         ctx.restore();
@@ -1565,19 +1497,17 @@ class RhythmLesson {
       }
     }
     
-    // Beat markers
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '18px Georgia';
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < totalBeats; i++) {
       const x = noteStartX + i * noteSpacing;
       ctx.fillText((i + 1).toString(), x, staffY + 80);
     }
     
-    // Current beat indicator during practice
     if (this.isPlaying && this.playbackTime >= 0) {
       const currentPos = noteStartX + (this.playbackTime / this.beatDuration) * noteSpacing;
       if (currentPos < W - 60) {
-        ctx.strokeStyle = COLORS.cube;
+        ctx.strokeStyle = this.color;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(currentPos, staffY - 50);
@@ -1586,13 +1516,12 @@ class RhythmLesson {
       }
     }
     
-    // Tap zone
     const tapY = 550;
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
     ctx.roundRect(60, tapY, W - 120, 200, 20);
     ctx.fill();
-    ctx.strokeStyle = this.isPlaying ? COLORS.cube : COLORS.cardBorder;
+    ctx.strokeStyle = this.isPlaying ? this.color : COLORS.cardBorder;
     ctx.lineWidth = 3;
     ctx.stroke();
     
@@ -1600,9 +1529,8 @@ class RhythmLesson {
     ctx.font = '28px Georgia';
     ctx.textAlign = 'center';
     
-    // Show count-in or tap prompt
     if (this.countingIn) {
-      ctx.fillStyle = COLORS.cube;
+      ctx.fillStyle = this.color;
       ctx.font = 'bold 72px Georgia';
       ctx.fillText(this.countInBeat || '', W/2, tapY + 110);
       ctx.font = '24px Georgia';
@@ -1612,10 +1540,9 @@ class RhythmLesson {
       ctx.fillText(this.isPlaying ? 'TAP HERE!' : 'Listen...', W/2, tapY + 100);
     }
     
-    // Player taps visualization
     for (const tap of this.playerTaps) {
       const x = noteStartX + tap * noteSpacing;
-      ctx.fillStyle = COLORS.cube;
+      ctx.fillStyle = this.color;
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
       ctx.arc(x, tapY + 160, 15, 0, Math.PI * 2);
@@ -1623,7 +1550,6 @@ class RhythmLesson {
       ctx.globalAlpha = 1;
     }
     
-    // Feedback
     if (this.feedback) {
       ctx.save();
       ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
@@ -1634,26 +1560,22 @@ class RhythmLesson {
       ctx.restore();
     }
     
-    // Demo/Retry button
     if (!this.isPlaying && !this.demoPlaying && !this.countingIn) {
       const btnText = this.phase === 'demo' || this.feedback?.type === 'retry' ? '▶ Listen Again' : '▶ Play Demo';
-      drawButton(ctx, W/2 - 100, 820, 200, 50, btnText, COLORS.cube, false);
+      drawButton(ctx, W/2 - 100, 820, 200, 50, btnText, this.color, false);
     }
     
-    // Progress
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '18px Georgia';
     ctx.textAlign = 'right';
     ctx.fillText(`Pattern ${this.currentPattern + 1}/${this.patterns.length}`, W - 30, 90);
     
-    // Bert the distracting sheep!
     if (this.bert.active) {
       drawBert(ctx, this.bert.x, this.bert.y, 0.7, {
         bounce: Math.sin(this.time * 6) * 8,
         wiggle: this.bert.wiggle
       });
       
-      // Random distracting text
       const distractions = ['BAAA!', 'Hey!', '👀', 'Oops!', 'Hehe~', '♪♫'];
       const textIndex = Math.floor(this.time * 2) % distractions.length;
       ctx.save();
@@ -1667,11 +1589,7 @@ class RhythmLesson {
   }
   
   renderComplete(ctx) {
-    // Celebration!
-    drawCube(ctx, W/2, 300, 1.3, { 
-      bounce: Math.sin(this.time * 5) * 15,
-      glow: 0.5 
-    });
+    this.teacherDraw(ctx, W/2, 300, 1.3, { bounce: Math.sin(this.time * 5) * 15, glow: 0.5 });
     
     ctx.fillStyle = COLORS.success;
     ctx.font = 'bold 48px Georgia';
@@ -1683,16 +1601,14 @@ class RhythmLesson {
     ctx.fillText(`Score: ${this.score}`, W/2, 570);
     ctx.fillText(`Accuracy: ${Math.round(this.successes / this.attempts * 100)}%`, W/2, 610);
     
-    // Stars
     const stars = this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1;
     ctx.font = '60px Georgia';
     ctx.fillText('⭐'.repeat(stars), W/2, 700);
     
-    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', COLORS.cube, false);
+    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
   }
   
   handleTap(x, y) {
-    // Exit button
     if (x < 100 && y > H - 60) {
       Audio.playClick();
       Game.endLesson();
@@ -1700,7 +1616,6 @@ class RhythmLesson {
     }
     
     if (this.phase === 'intro') {
-      // Continue button
       if (hitRect(x, y, W/2 - 100, 700, 200, 50)) {
         Audio.playClick();
         this.introIndex++;
@@ -1710,26 +1625,25 @@ class RhythmLesson {
         }
       }
     }
-    else if (this.phase === 'demo' || (this.phase === 'practice' && !this.isPlaying && !this.demoPlaying)) {
-      // Play demo button
+    else if (this.phase === 'demo' || (this.phase === 'practice' && !this.isPlaying && !this.demoPlaying && !this.countingIn)) {
       if (hitRect(x, y, W/2 - 100, 820, 200, 50)) {
         Audio.playClick();
         this.startDemo();
       }
     }
     else if (this.phase === 'practice' && this.isPlaying) {
-      // Tap zone
       if (hitRect(x, y, 60, 550, W - 120, 200)) {
+        const pattern = this.patterns[this.currentPattern];
+        const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
         const beat = this.playbackTime / this.beatDuration;
-        if (beat >= 0 && beat < 4) {
+        if (beat >= 0 && beat < totalBeats) {
           this.playerTaps.push(beat);
           Audio.playRhythmNote();
-          spawnParticles(x, y, COLORS.cube, 5);
+          spawnParticles(x, y, this.color, 5);
         }
       }
     }
     else if (this.phase === 'complete') {
-      // Continue button
       if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
         Audio.playClick();
         Game.endLesson();
@@ -1742,6 +1656,953 @@ class RhythmLesson {
     this.playbackTime = 0;
     this.demoNotes = [];
     this.demoIndex = 0;
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  HARMONY LESSON (WILLOW)                                          ║
+// ╚══════════════════════════════════════════════════════════════════╝
+class HarmonyLesson {
+  constructor(lessonNum) {
+    this.lessonNum = lessonNum;
+    this.phase = 'intro';
+    this.time = 0;
+    this.teacherAnim = { bounce: 0, blink: false, talk: false, blinkTimer: 3 };
+    this.color = COLORS.willow;
+    this.teacherDraw = drawWillow;
+    
+    this.setupLesson();
+    
+    this.currentQuestion = 0;
+    this.score = 0;
+    this.attempts = 0;
+    this.successes = 0;
+    
+    this.feedback = null;
+    this.feedbackTimer = 0;
+    this.selectedAnswer = -1;
+    this.correctAnswer = -1;
+    this.showingAnswer = false;
+  }
+  
+  setupLesson() {
+    const lessonData = {
+      1: {
+        title: 'Major Chords',
+        introText: ["Hello! I'm Willow, your harmony guide.", "Chords are notes played together.", "Major chords sound HAPPY and bright!", "They're built: Root + Major 3rd + 5th", "Let's learn to recognize them!"],
+        questions: [
+          { type: 'play', chord: ['C4', 'E4', 'G4'], name: 'C Major', options: ['C Major', 'C Minor', 'G Major', 'F Major'], correct: 0 },
+          { type: 'play', chord: ['G4', 'B4', 'D5'], name: 'G Major', options: ['F Major', 'G Minor', 'G Major', 'D Major'], correct: 2 },
+          { type: 'play', chord: ['F4', 'A4', 'C5'], name: 'F Major', options: ['C Major', 'F Minor', 'A Major', 'F Major'], correct: 3 },
+        ]
+      },
+      2: {
+        title: 'Minor Chords',
+        introText: ["Now for something moodier...", "Minor chords sound SAD or serious.", "They're built: Root + Minor 3rd + 5th", "Just one note different from major!", "Listen for that darker quality."],
+        questions: [
+          { type: 'play', chord: ['A4', 'C5', 'E5'], name: 'A Minor', options: ['A Major', 'A Minor', 'E Minor', 'D Minor'], correct: 1 },
+          { type: 'play', chord: ['E4', 'G4', 'B4'], name: 'E Minor', options: ['E Major', 'G Major', 'E Minor', 'B Minor'], correct: 2 },
+          { type: 'play', chord: ['D4', 'F4', 'A4'], name: 'D Minor', options: ['D Major', 'F Major', 'A Minor', 'D Minor'], correct: 3 },
+        ]
+      },
+      3: {
+        title: 'Chord Recognition',
+        introText: ["Can you tell them apart?", "Major = Happy, bright ☀️", "Minor = Sad, dark 🌙", "Listen carefully to each chord.", "Trust your ears!"],
+        questions: [
+          { type: 'play', chord: ['C4', 'E4', 'G4'], name: 'C Major', options: ['Major', 'Minor'], correct: 0 },
+          { type: 'play', chord: ['A4', 'C5', 'E5'], name: 'A Minor', options: ['Major', 'Minor'], correct: 1 },
+          { type: 'play', chord: ['G4', 'B4', 'D5'], name: 'G Major', options: ['Major', 'Minor'], correct: 0 },
+          { type: 'play', chord: ['E4', 'G4', 'B4'], name: 'E Minor', options: ['Major', 'Minor'], correct: 1 },
+        ]
+      },
+      4: {
+        title: 'The I-IV-V',
+        introText: ["The most important progression!", "I-IV-V is everywhere in music.", "In C: C Major, F Major, G Major", "These chords just WORK together.", "Listen for this classic pattern!"],
+        questions: [
+          { type: 'progression', chords: [['C4','E4','G4'], ['F4','A4','C5'], ['G4','B4','D5']], name: 'I-IV-V in C', options: ['I-IV-V', 'I-V-IV', 'IV-I-V'], correct: 0 },
+          { type: 'progression', chords: [['G4','B4','D5'], ['C5','E5','G5'], ['D5','F5','A5']], name: 'I-IV-V in G', options: ['I-V-IV', 'I-IV-V', 'V-IV-I'], correct: 1 },
+          { type: 'progression', chords: [['C4','E4','G4'], ['G4','B4','D5'], ['F4','A4','C5']], name: 'I-V-IV', options: ['I-IV-V', 'I-V-IV', 'IV-V-I'], correct: 1 },
+        ]
+      },
+      5: {
+        title: 'Seventh Chords',
+        introText: ["Let's add some color!", "7th chords add a 4th note.", "They sound jazzy and complex.", "Major 7 = dreamy", "Dominant 7 = bluesy tension!"],
+        questions: [
+          { type: 'play', chord: ['C4', 'E4', 'G4', 'B4'], name: 'C Major 7', options: ['C Major', 'C Major 7', 'C7', 'C Minor 7'], correct: 1 },
+          { type: 'play', chord: ['G4', 'B4', 'D5', 'F5'], name: 'G7', options: ['G Major', 'G Major 7', 'G7', 'G Minor'], correct: 2 },
+          { type: 'play', chord: ['A4', 'C5', 'E5', 'G5'], name: 'A Minor 7', options: ['A Major 7', 'A7', 'A Minor', 'A Minor 7'], correct: 3 },
+        ]
+      },
+      6: {
+        title: 'Chord Progressions',
+        introText: ["Time to hear full progressions!", "Multiple chords in sequence.", "Feel how they move and resolve.", "This is the heart of songwriting!", "Let's identify some classics."],
+        questions: [
+          { type: 'progression', chords: [['C4','E4','G4'], ['A4','C5','E5'], ['F4','A4','C5'], ['G4','B4','D5']], name: 'I-vi-IV-V', options: ['I-IV-V-I', 'I-vi-IV-V', 'I-V-vi-IV'], correct: 1 },
+          { type: 'progression', chords: [['C4','E4','G4'], ['G4','B4','D5'], ['A4','C5','E5'], ['F4','A4','C5']], name: 'I-V-vi-IV', options: ['I-V-vi-IV', 'I-vi-IV-V', 'I-IV-V-vi'], correct: 0 },
+          { type: 'progression', chords: [['A4','C5','E5'], ['F4','A4','C5'], ['C4','E4','G4'], ['G4','B4','D5']], name: 'vi-IV-I-V', options: ['I-IV-V-vi', 'vi-IV-I-V', 'IV-vi-V-I'], correct: 1 },
+        ]
+      }
+    };
+    
+    const data = lessonData[this.lessonNum];
+    this.title = data.title;
+    this.introText = data.introText;
+    this.questions = data.questions;
+    this.introIndex = 0;
+  }
+  
+  update(dt) {
+    this.time += dt;
+    
+    this.teacherAnim.bounce = Math.sin(this.time * 3) * 5;
+    this.teacherAnim.blinkTimer -= dt;
+    if (this.teacherAnim.blinkTimer <= 0) {
+      this.teacherAnim.blink = true;
+      setTimeout(() => this.teacherAnim.blink = false, 150);
+      this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
+    }
+    
+    this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
+    
+    if (this.feedback) {
+      this.feedbackTimer -= dt;
+      if (this.feedbackTimer <= 0) {
+        const wasSuccess = this.feedback.type === 'success';
+        this.feedback = null;
+        this.showingAnswer = false;
+        this.selectedAnswer = -1;
+        
+        if (wasSuccess && this.phase !== 'complete') {
+          this.currentQuestion++;
+          if (this.currentQuestion >= this.questions.length) {
+            this.phase = 'complete';
+          }
+        }
+      }
+    }
+  }
+  
+  render(ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a1508');
+    grad.addColorStop(1, '#0a0a06');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    ctx.fillStyle = this.color;
+    ctx.font = 'bold 28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
+    
+    if (this.phase === 'intro') {
+      this.renderIntro(ctx);
+    } else if (this.phase === 'practice') {
+      this.renderPractice(ctx);
+    } else if (this.phase === 'complete') {
+      this.renderComplete(ctx);
+    }
+    
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('← Exit', 30, H - 30);
+  }
+  
+  renderIntro(ctx) {
+    this.teacherDraw(ctx, W/2, 280, 1.2, this.teacherAnim);
+    
+    const bubbleY = 450;
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(60, bubbleY, W - 120, 150, 20);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 20, bubbleY);
+    ctx.lineTo(W/2, bubbleY - 20);
+    ctx.lineTo(W/2 + 20, bubbleY);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(this.introText[this.introIndex], W/2, bubbleY + 85);
+    
+    for (let i = 0; i < this.introText.length; i++) {
+      ctx.fillStyle = i === this.introIndex ? this.color : COLORS.textMuted;
+      ctx.beginPath();
+      ctx.arc(W/2 - (this.introText.length - 1) * 12 + i * 24, bubbleY + 130, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
+  }
+  
+  renderPractice(ctx) {
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    
+    const q = this.questions[this.currentQuestion];
+    
+    // Play button
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - 80, 200, 160, 80, 16);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = this.color;
+    ctx.font = '36px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('▶ Play', W/2, 252);
+    
+    // Question
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.fillText('What chord is this?', W/2, 340);
+    
+    // Options
+    const optY = 400;
+    const optH = 70;
+    const optGap = 15;
+    
+    q.options.forEach((opt, i) => {
+      const y = optY + i * (optH + optGap);
+      let bgColor = COLORS.card;
+      let borderColor = COLORS.cardBorder;
+      
+      if (this.showingAnswer) {
+        if (i === q.correct) {
+          bgColor = 'rgba(74, 222, 128, 0.3)';
+          borderColor = COLORS.success;
+        } else if (i === this.selectedAnswer && i !== q.correct) {
+          bgColor = 'rgba(239, 68, 68, 0.3)';
+          borderColor = COLORS.error;
+        }
+      }
+      
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.roundRect(60, y, W - 120, optH, 12);
+      ctx.fill();
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(opt, W/2, y + 44);
+    });
+    
+    // Feedback
+    if (this.feedback) {
+      ctx.save();
+      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
+      ctx.font = 'bold 36px Georgia';
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
+      ctx.fillText(this.feedback.text, W/2, 760);
+      ctx.restore();
+    }
+    
+    // Progress
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Question ${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
+  }
+  
+  renderComplete(ctx) {
+    this.teacherDraw(ctx, W/2, 300, 1.3, { bounce: Math.sin(this.time * 5) * 15, glow: 0.5 });
+    
+    ctx.fillStyle = COLORS.success;
+    ctx.font = 'bold 48px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Lesson Complete!', W/2, 500);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px Georgia';
+    ctx.fillText(`Score: ${this.score}`, W/2, 570);
+    ctx.fillText(`Accuracy: ${Math.round(this.successes / this.attempts * 100)}%`, W/2, 610);
+    
+    const stars = this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1;
+    ctx.font = '60px Georgia';
+    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    
+    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
+  }
+  
+  playCurrentChord() {
+    const q = this.questions[this.currentQuestion];
+    if (q.type === 'play') {
+      Audio.playChord(q.chord);
+    } else if (q.type === 'progression') {
+      q.chords.forEach((chord, i) => {
+        setTimeout(() => Audio.playChord(chord), i * 700);
+      });
+    }
+  }
+  
+  handleTap(x, y) {
+    if (x < 100 && y > H - 60) {
+      Audio.playClick();
+      Game.endLesson();
+      return;
+    }
+    
+    if (this.phase === 'intro') {
+      if (hitRect(x, y, W/2 - 100, 700, 200, 50)) {
+        Audio.playClick();
+        this.introIndex++;
+        if (this.introIndex >= this.introText.length) {
+          this.phase = 'practice';
+        }
+      }
+    }
+    else if (this.phase === 'practice' && !this.showingAnswer) {
+      // Play button
+      if (hitRect(x, y, W/2 - 80, 200, 160, 80)) {
+        this.playCurrentChord();
+        return;
+      }
+      
+      // Options
+      const q = this.questions[this.currentQuestion];
+      const optY = 400;
+      const optH = 70;
+      const optGap = 15;
+      
+      for (let i = 0; i < q.options.length; i++) {
+        const y = optY + i * (optH + optGap);
+        if (hitRect(x, y, 60, y, W - 120, optH)) {
+          this.attempts++;
+          this.selectedAnswer = i;
+          this.showingAnswer = true;
+          
+          if (i === q.correct) {
+            this.successes++;
+            this.score += 100;
+            this.feedback = { type: 'success', text: 'Correct! 🎵' };
+            Audio.playSuccess();
+            spawnParticles(W/2, y + optH/2, COLORS.success, 20);
+          } else {
+            this.feedback = { type: 'retry', text: `It was ${q.options[q.correct]}` };
+            Audio.playFail();
+          }
+          this.feedbackTimer = 2;
+          break;
+        }
+      }
+    }
+    else if (this.phase === 'complete') {
+      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+        Audio.playClick();
+        Game.endLesson();
+      }
+    }
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  MELODY LESSON (DROPJE)                                           ║
+// ╚══════════════════════════════════════════════════════════════════╝
+class MelodyLesson {
+  constructor(lessonNum) {
+    this.lessonNum = lessonNum;
+    this.phase = 'intro';
+    this.time = 0;
+    this.teacherAnim = { bounce: 0, blink: false, talk: false, blinkTimer: 3 };
+    this.color = COLORS.dropje;
+    this.teacherDraw = drawDropje;
+    
+    this.setupLesson();
+    
+    this.currentQuestion = 0;
+    this.score = 0;
+    this.attempts = 0;
+    this.successes = 0;
+    
+    this.feedback = null;
+    this.feedbackTimer = 0;
+    
+    this.playerNotes = [];
+    this.targetNotes = [];
+    this.isRecording = false;
+    this.playbackIndex = 0;
+    this.selectedAnswer = -1;
+    this.showingAnswer = false;
+  }
+  
+  setupLesson() {
+    const lessonData = {
+      1: {
+        title: 'Scale Steps',
+        introText: ["Woof! I'm Dropje, melody expert!", "Melodies use notes from scales.", "The major scale goes: Do Re Mi Fa Sol La Ti Do", "Each step up is one note higher.", "Let's explore!"],
+        type: 'echo',
+        patterns: [
+          { notes: ['C4', 'D4', 'E4'], display: 'Do Re Mi' },
+          { notes: ['E4', 'F4', 'G4'], display: 'Mi Fa Sol' },
+          { notes: ['G4', 'A4', 'B4', 'C5'], display: 'Sol La Ti Do' },
+        ]
+      },
+      2: {
+        title: 'Intervals',
+        introText: ["Intervals = distance between notes.", "A 2nd is one step (C to D).", "A 3rd skips a note (C to E).", "A 5th is a big jump (C to G)!", "Listen for how far notes jump."],
+        type: 'identify',
+        questions: [
+          { notes: ['C4', 'D4'], answer: '2nd (Step)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
+          { notes: ['C4', 'E4'], answer: '3rd (Skip)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
+          { notes: ['C4', 'G4'], answer: '5th (Jump)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
+        ]
+      },
+      3: {
+        title: 'Echo Melodies',
+        introText: ["Time to use your ears!", "I'll play a short melody.", "Then YOU play it back!", "Tap the notes in the same order.", "Ready to echo?"],
+        type: 'echo',
+        patterns: [
+          { notes: ['C4', 'E4', 'G4'], display: 'Do Mi Sol' },
+          { notes: ['G4', 'E4', 'C4'], display: 'Sol Mi Do' },
+          { notes: ['C4', 'D4', 'E4', 'C4'], display: 'Do Re Mi Do' },
+        ]
+      },
+      4: {
+        title: 'Pattern Recognition',
+        introText: ["Melodies have patterns!", "Notes can go UP, DOWN, or REPEAT.", "Listen for the shape of the melody.", "Is it rising? Falling? Staying?", "Let's find out!"],
+        type: 'identify',
+        questions: [
+          { notes: ['C4', 'D4', 'E4', 'F4'], answer: 'Going Up ↑', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
+          { notes: ['G4', 'F4', 'E4', 'D4'], answer: 'Going Down ↓', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
+          { notes: ['E4', 'E4', 'E4', 'E4'], answer: 'Staying Same →', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
+        ]
+      },
+      5: {
+        title: 'Melodic Dictation',
+        introText: ["Advanced ear training!", "I'll play a longer melody.", "Remember all the notes!", "Then play them back perfectly.", "Concentrate!"],
+        type: 'echo',
+        patterns: [
+          { notes: ['C4', 'E4', 'G4', 'E4', 'C4'], display: '5 notes' },
+          { notes: ['G4', 'F4', 'E4', 'D4', 'C4'], display: 'Descending' },
+          { notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4'], display: '6 notes!' },
+        ]
+      },
+      6: {
+        title: 'Free Composition',
+        introText: ["Now it's YOUR turn!", "Create your own melody.", "Use the notes to make music.", "There's no wrong answer here!", "Express yourself!"],
+        type: 'compose',
+        patterns: []
+      }
+    };
+    
+    const data = lessonData[this.lessonNum];
+    this.title = data.title;
+    this.introText = data.introText;
+    this.lessonType = data.type;
+    this.patterns = data.patterns || [];
+    this.questions = data.questions || [];
+    this.introIndex = 0;
+  }
+  
+  update(dt) {
+    this.time += dt;
+    
+    this.teacherAnim.bounce = Math.sin(this.time * 3) * 5;
+    this.teacherAnim.blinkTimer -= dt;
+    if (this.teacherAnim.blinkTimer <= 0) {
+      this.teacherAnim.blink = true;
+      setTimeout(() => this.teacherAnim.blink = false, 150);
+      this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
+    }
+    
+    this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
+    
+    if (this.feedback) {
+      this.feedbackTimer -= dt;
+      if (this.feedbackTimer <= 0) {
+        const wasSuccess = this.feedback.type === 'success';
+        this.feedback = null;
+        this.playerNotes = [];
+        this.showingAnswer = false;
+        this.selectedAnswer = -1;
+        
+        if (wasSuccess && this.phase !== 'complete') {
+          this.currentQuestion++;
+          const max = this.lessonType === 'echo' ? this.patterns.length : this.questions.length;
+          if (this.currentQuestion >= max) {
+            this.phase = 'complete';
+          }
+        }
+      }
+    }
+  }
+  
+  render(ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0a1520');
+    grad.addColorStop(1, '#050a10');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    ctx.fillStyle = this.color;
+    ctx.font = 'bold 28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
+    
+    if (this.phase === 'intro') {
+      this.renderIntro(ctx);
+    } else if (this.phase === 'practice') {
+      if (this.lessonType === 'echo') {
+        this.renderEcho(ctx);
+      } else if (this.lessonType === 'identify') {
+        this.renderIdentify(ctx);
+      } else if (this.lessonType === 'compose') {
+        this.renderCompose(ctx);
+      }
+    } else if (this.phase === 'complete') {
+      this.renderComplete(ctx);
+    }
+    
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('← Exit', 30, H - 30);
+  }
+  
+  renderIntro(ctx) {
+    this.teacherDraw(ctx, W/2, 280, 1.2, this.teacherAnim);
+    
+    const bubbleY = 450;
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(60, bubbleY, W - 120, 150, 20);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 20, bubbleY);
+    ctx.lineTo(W/2, bubbleY - 20);
+    ctx.lineTo(W/2 + 20, bubbleY);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(this.introText[this.introIndex], W/2, bubbleY + 85);
+    
+    for (let i = 0; i < this.introText.length; i++) {
+      ctx.fillStyle = i === this.introIndex ? this.color : COLORS.textMuted;
+      ctx.beginPath();
+      ctx.arc(W/2 - (this.introText.length - 1) * 12 + i * 24, bubbleY + 130, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
+  }
+  
+  renderEcho(ctx) {
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    
+    const pattern = this.patterns[this.currentQuestion];
+    
+    // Instructions
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Listen, then play it back!', W/2, 200);
+    ctx.fillStyle = this.color;
+    ctx.fillText(pattern.display, W/2, 240);
+    
+    // Play button
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - 80, 280, 160, 70, 16);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = this.color;
+    ctx.font = '30px Georgia';
+    ctx.fillText('▶ Listen', W/2, 325);
+    
+    // Piano keys
+    this.renderPiano(ctx, 380);
+    
+    // Player's notes
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Georgia';
+    ctx.fillText(`Your notes: ${this.playerNotes.join(' ')}`, W/2, 750);
+    
+    // Submit button
+    if (this.playerNotes.length > 0) {
+      drawButton(ctx, W/2 - 80, 800, 160, 50, 'Submit', this.color, false);
+    }
+    
+    // Feedback
+    if (this.feedback) {
+      ctx.save();
+      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
+      ctx.font = 'bold 32px Georgia';
+      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
+      ctx.fillText(this.feedback.text, W/2, 900);
+      ctx.restore();
+    }
+    
+    // Progress
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Pattern ${this.currentQuestion + 1}/${this.patterns.length}`, W - 30, 90);
+  }
+  
+  renderPiano(ctx, y) {
+    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+    const keyW = 70;
+    const keyH = 150;
+    const startX = (W - keyW * notes.length) / 2;
+    
+    notes.forEach((note, i) => {
+      const x = startX + i * keyW;
+      const isPlayed = this.playerNotes.includes(note);
+      
+      ctx.fillStyle = isPlayed ? this.color : '#fff';
+      ctx.beginPath();
+      ctx.roundRect(x + 2, y, keyW - 4, keyH, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.fillStyle = isPlayed ? '#fff' : '#333';
+      ctx.font = '18px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(note.replace('4', '').replace('5', '′'), x + keyW/2, y + keyH - 20);
+    });
+  }
+  
+  renderIdentify(ctx) {
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    
+    const q = this.questions[this.currentQuestion];
+    
+    // Play button
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - 80, 200, 160, 80, 16);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = this.color;
+    ctx.font = '36px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('▶ Play', W/2, 252);
+    
+    // Question
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.fillText('What do you hear?', W/2, 340);
+    
+    // Options
+    const optY = 400;
+    const optH = 70;
+    const optGap = 15;
+    const correctIdx = q.options.indexOf(q.answer);
+    
+    q.options.forEach((opt, i) => {
+      const y = optY + i * (optH + optGap);
+      let bgColor = COLORS.card;
+      let borderColor = COLORS.cardBorder;
+      
+      if (this.showingAnswer) {
+        if (i === correctIdx) {
+          bgColor = 'rgba(74, 222, 128, 0.3)';
+          borderColor = COLORS.success;
+        } else if (i === this.selectedAnswer && i !== correctIdx) {
+          bgColor = 'rgba(239, 68, 68, 0.3)';
+          borderColor = COLORS.error;
+        }
+      }
+      
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.roundRect(60, y, W - 120, optH, 12);
+      ctx.fill();
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(opt, W/2, y + 44);
+    });
+    
+    // Feedback
+    if (this.feedback) {
+      ctx.save();
+      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
+      ctx.font = 'bold 36px Georgia';
+      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
+      ctx.fillText(this.feedback.text, W/2, 680);
+      ctx.restore();
+    }
+    
+    // Progress
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Question ${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
+  }
+  
+  renderCompose(ctx) {
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Create your melody!', W/2, 200);
+    
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.fillText('Tap the keys to compose', W/2, 240);
+    
+    // Piano
+    this.renderPiano(ctx, 300);
+    
+    // Player's composition
+    ctx.fillStyle = this.color;
+    ctx.font = '24px Georgia';
+    const display = this.playerNotes.length > 0 ? this.playerNotes.join(' ') : '(tap keys to start)';
+    ctx.fillText(display, W/2, 520);
+    
+    // Buttons
+    if (this.playerNotes.length > 0) {
+      drawButton(ctx, W/2 - 170, 600, 150, 50, 'Clear', COLORS.error, false);
+      drawButton(ctx, W/2 + 20, 600, 150, 50, '▶ Play', this.color, false);
+    }
+    
+    // Complete button
+    if (this.playerNotes.length >= 4) {
+      drawButton(ctx, W/2 - 100, 700, 200, 50, 'Finish Lesson', COLORS.success, false);
+    }
+  }
+  
+  renderComplete(ctx) {
+    this.teacherDraw(ctx, W/2, 300, 1.3, { bounce: Math.sin(this.time * 5) * 15, glow: 0.5 });
+    
+    ctx.fillStyle = COLORS.success;
+    ctx.font = 'bold 48px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Lesson Complete!', W/2, 500);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px Georgia';
+    
+    if (this.lessonType === 'compose') {
+      ctx.fillText('Great composition! 🎵', W/2, 570);
+    } else {
+      ctx.fillText(`Score: ${this.score}`, W/2, 570);
+      const acc = this.attempts > 0 ? Math.round(this.successes / this.attempts * 100) : 100;
+      ctx.fillText(`Accuracy: ${acc}%`, W/2, 610);
+    }
+    
+    const stars = this.lessonType === 'compose' ? 3 : 
+                  (this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1);
+    ctx.font = '60px Georgia';
+    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    
+    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
+  }
+  
+  playPattern() {
+    const pattern = this.patterns[this.currentQuestion];
+    pattern.notes.forEach((note, i) => {
+      setTimeout(() => Audio.playMelodyNote(note), i * 400);
+    });
+  }
+  
+  playQuestion() {
+    const q = this.questions[this.currentQuestion];
+    q.notes.forEach((note, i) => {
+      setTimeout(() => Audio.playMelodyNote(note), i * 400);
+    });
+  }
+  
+  playComposition() {
+    this.playerNotes.forEach((note, i) => {
+      setTimeout(() => Audio.playMelodyNote(note), i * 300);
+    });
+  }
+  
+  handleTap(x, y) {
+    if (x < 100 && y > H - 60) {
+      Audio.playClick();
+      Game.endLesson();
+      return;
+    }
+    
+    if (this.phase === 'intro') {
+      if (hitRect(x, y, W/2 - 100, 700, 200, 50)) {
+        Audio.playClick();
+        this.introIndex++;
+        if (this.introIndex >= this.introText.length) {
+          this.phase = 'practice';
+        }
+      }
+    }
+    else if (this.phase === 'practice') {
+      if (this.lessonType === 'echo') {
+        this.handleEchoTap(x, y);
+      } else if (this.lessonType === 'identify') {
+        this.handleIdentifyTap(x, y);
+      } else if (this.lessonType === 'compose') {
+        this.handleComposeTap(x, y);
+      }
+    }
+    else if (this.phase === 'complete') {
+      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+        Audio.playClick();
+        Game.endLesson();
+      }
+    }
+  }
+  
+  handleEchoTap(x, y) {
+    // Listen button
+    if (hitRect(x, y, W/2 - 80, 280, 160, 70)) {
+      this.playPattern();
+      return;
+    }
+    
+    // Piano keys
+    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+    const keyW = 70;
+    const keyH = 150;
+    const startX = (W - keyW * notes.length) / 2;
+    const pianoY = 380;
+    
+    for (let i = 0; i < notes.length; i++) {
+      const kx = startX + i * keyW;
+      if (hitRect(x, y, kx, pianoY, keyW, keyH)) {
+        Audio.playMelodyNote(notes[i]);
+        this.playerNotes.push(notes[i]);
+        spawnParticles(kx + keyW/2, pianoY + keyH/2, this.color, 5);
+        return;
+      }
+    }
+    
+    // Submit button
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 80, 800, 160, 50)) {
+      this.checkEchoAnswer();
+    }
+  }
+  
+  checkEchoAnswer() {
+    const pattern = this.patterns[this.currentQuestion];
+    this.attempts++;
+    
+    const correct = JSON.stringify(this.playerNotes) === JSON.stringify(pattern.notes);
+    
+    if (correct) {
+      this.successes++;
+      this.score += 100;
+      this.feedback = { type: 'success', text: 'Perfect echo! 🎵' };
+      Audio.playSuccess();
+      spawnParticles(W/2, H/2, COLORS.success, 20);
+    } else {
+      this.feedback = { type: 'retry', text: 'Not quite, try again!' };
+      Audio.playFail();
+    }
+    this.feedbackTimer = 2;
+  }
+  
+  handleIdentifyTap(x, y) {
+    if (this.showingAnswer) return;
+    
+    // Play button
+    if (hitRect(x, y, W/2 - 80, 200, 160, 80)) {
+      this.playQuestion();
+      return;
+    }
+    
+    // Options
+    const q = this.questions[this.currentQuestion];
+    const optY = 400;
+    const optH = 70;
+    const optGap = 15;
+    const correctIdx = q.options.indexOf(q.answer);
+    
+    for (let i = 0; i < q.options.length; i++) {
+      const oy = optY + i * (optH + optGap);
+      if (hitRect(x, y, 60, oy, W - 120, optH)) {
+        this.attempts++;
+        this.selectedAnswer = i;
+        this.showingAnswer = true;
+        
+        if (i === correctIdx) {
+          this.successes++;
+          this.score += 100;
+          this.feedback = { type: 'success', text: 'Correct! 👂' };
+          Audio.playSuccess();
+          spawnParticles(W/2, oy + optH/2, COLORS.success, 20);
+        } else {
+          this.feedback = { type: 'retry', text: `It was: ${q.answer}` };
+          Audio.playFail();
+        }
+        this.feedbackTimer = 2;
+        break;
+      }
+    }
+  }
+  
+  handleComposeTap(x, y) {
+    // Piano keys
+    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+    const keyW = 70;
+    const keyH = 150;
+    const startX = (W - keyW * notes.length) / 2;
+    const pianoY = 300;
+    
+    for (let i = 0; i < notes.length; i++) {
+      const kx = startX + i * keyW;
+      if (hitRect(x, y, kx, pianoY, keyW, keyH)) {
+        Audio.playMelodyNote(notes[i]);
+        this.playerNotes.push(notes[i]);
+        spawnParticles(kx + keyW/2, pianoY + keyH/2, this.color, 5);
+        return;
+      }
+    }
+    
+    // Clear button
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 170, 600, 150, 50)) {
+      Audio.playClick();
+      this.playerNotes = [];
+      return;
+    }
+    
+    // Play button
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 + 20, 600, 150, 50)) {
+      this.playComposition();
+      return;
+    }
+    
+    // Finish button
+    if (this.playerNotes.length >= 4 && hitRect(x, y, W/2 - 100, 700, 200, 50)) {
+      Audio.playSuccess();
+      this.phase = 'complete';
+    }
   }
 }
 
