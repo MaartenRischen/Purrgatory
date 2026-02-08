@@ -1220,7 +1220,15 @@ class RhythmLesson {
     // Feedback timer
     if (this.feedback) {
       this.feedbackTimer -= dt;
-      if (this.feedbackTimer <= 0) this.feedback = null;
+      if (this.feedbackTimer <= 0) {
+        const wasSuccess = this.feedback.type === 'success';
+        this.feedback = null;
+        
+        // Auto-progress after success
+        if (wasSuccess && this.phase !== 'complete') {
+          this.startDemo();
+        }
+      }
     }
   }
   
