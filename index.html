@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Purrgatory - Rhythm Game</title>
+<title>Purrgatory - Music Academy</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a12; }
-body { display: flex; justify-content: center; align-items: center; }
+body { display: flex; justify-content: center; align-items: center; font-family: 'Georgia', serif; }
 canvas { display: block; touch-action: none; }
 </style>
 </head>
@@ -17,20 +17,21 @@ canvas { display: block; touch-action: none; }
 'use strict';
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  PURRGATORY - RHYTHM GAME                                         ║
-// ║  Three pets. One beat. Don't miss.                                ║
+// ║  PURRGATORY - MUSIC ACADEMY                                       ║
+// ║  Three teachers. Three disciplines. One musical journey.         ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
 const C = document.getElementById('game');
 const CTX = C.getContext('2d');
 
-// Responsive sizing
 function resize() {
   const ratio = 9/16;
   let w = window.innerWidth, h = window.innerHeight;
   if (w/h > ratio) { w = h * ratio; } else { h = w / ratio; }
-  C.style.width = w + 'px'; C.style.height = h + 'px';
-  C.width = 720; C.height = 1280;
+  C.style.width = w + 'px';
+  C.style.height = h + 'px';
+  C.width = 720;
+  C.height = 1280;
 }
 resize();
 window.addEventListener('resize', resize);
@@ -42,29 +43,21 @@ const W = 720, H = 1280;
 // ╚══════════════════════════════════════════════════════════════════╝
 const Audio = {
   ctx: null,
-  bpm: 128,
-  beatInterval: 60/128,
-  startTime: 0,
   
   init() {
+    if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.beatInterval = 60 / this.bpm;
   },
   
   resume() {
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx?.state === 'suspended') this.ctx.resume();
   },
   
-  getCurrentBeat() {
-    if (!this.ctx) return 0;
-    return (this.ctx.currentTime - this.startTime) / this.beatInterval;
-  },
-  
-  playHit(freq = 440, type = 'sine', dur = 0.1) {
+  playTick(freq = 800, dur = 0.08) {
     if (!this.ctx) return;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = type;
+    osc.type = 'sine';
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
@@ -74,42 +67,34 @@ const Audio = {
     osc.stop(this.ctx.currentTime + dur);
   },
   
-  playKick() {
+  playClick() { this.playTick(1000, 0.05); },
+  playBeat() { this.playTick(600, 0.1); },
+  playSuccess() {
+    this.playTick(523, 0.15);
+    setTimeout(() => this.playTick(659, 0.15), 100);
+    setTimeout(() => this.playTick(784, 0.2), 200);
+  },
+  playFail() { this.playTick(200, 0.3); },
+  
+  // Play a metronome click
+  playMetronome(accent = false) {
+    this.playTick(accent ? 1200 : 800, 0.05);
+  },
+  
+  // Play rhythm demonstration
+  playRhythmNote() {
     if (!this.ctx) return;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+    osc.type = 'triangle';
+    osc.frequency.value = 440;
+    gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.15);
-  },
-  
-  playSnare() {
-    if (!this.ctx) return;
-    const noise = this.ctx.createBufferSource();
-    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    noise.buffer = buf;
-    const gain = this.ctx.createGain();
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 1000;
-    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.ctx.destination);
-    noise.start();
-  },
-  
-  playPerfect() { this.playHit(880, 'sine', 0.15); },
-  playGood() { this.playHit(660, 'triangle', 0.1); },
-  playMiss() { this.playHit(110, 'sawtooth', 0.2); }
+  }
 };
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -120,20 +105,32 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
+function hitRect(px, py, rx, ry, rw, rh) {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  COLORS & THEME                                                   ║
+// ║  THEME COLORS                                                     ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const COLORS = {
   bg: '#0a0a12',
-  lane1: '#e94560', // Cube - pink/red
-  lane2: '#f5a623', // Willow - amber
-  lane3: '#7ec8e3', // Dropje - blue
-  perfect: '#FFD700',
-  good: '#7ec8e3',
-  miss: '#ff4444',
+  bgLight: '#12121f',
+  
+  // Teacher colors
+  cube: '#e94560',      // Pink/red - Rhythm
+  willow: '#f5a623',    // Amber - Harmony  
+  dropje: '#7ec8e3',    // Blue - Melody
+  
   text: '#ffffff',
-  textDim: '#666688',
-  glow: 'rgba(233, 69, 96, 0.6)',
+  textDim: '#888899',
+  textMuted: '#555566',
+  
+  success: '#4ade80',
+  warning: '#fbbf24',
+  error: '#ef4444',
+  
+  card: '#1a1a2e',
+  cardBorder: '#2a2a4e',
 };
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -141,34 +138,16 @@ const COLORS = {
 // ╚══════════════════════════════════════════════════════════════════╝
 const particles = [];
 
-function spawnParticles(x, y, color, count = 10, speed = 200) {
+function spawnParticles(x, y, color, count = 10) {
   for (let i = 0; i < count; i++) {
-    const angle = (Math.PI * 2 * i / count) + Math.random() * 0.5;
+    const angle = Math.PI * 2 * i / count;
     particles.push({
       x, y,
-      vx: Math.cos(angle) * speed * (0.5 + Math.random()),
-      vy: Math.sin(angle) * speed * (0.5 + Math.random()),
+      vx: Math.cos(angle) * (100 + Math.random() * 100),
+      vy: Math.sin(angle) * (100 + Math.random() * 100),
       life: 1,
-      maxLife: 0.4 + Math.random() * 0.3,
       color,
-      size: 4 + Math.random() * 8,
-    });
-  }
-}
-
-function spawnPerfectBurst(x, y) {
-  spawnParticles(x, y, COLORS.perfect, 20, 350);
-  // Extra sparkle ring
-  for (let i = 0; i < 12; i++) {
-    const angle = (Math.PI * 2 * i / 12);
-    particles.push({
-      x, y,
-      vx: Math.cos(angle) * 150,
-      vy: Math.sin(angle) * 150,
-      life: 1, maxLife: 0.5,
-      color: '#fff',
-      size: 3,
-      ring: true,
+      size: 3 + Math.random() * 4,
     });
   }
 }
@@ -178,42 +157,35 @@ function updateParticles(dt) {
     const p = particles[i];
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vy += 400 * dt; // gravity
-    p.life -= dt / p.maxLife;
+    p.vy += 300 * dt;
+    p.life -= dt * 2;
     if (p.life <= 0) particles.splice(i, 1);
   }
 }
 
 function renderParticles(ctx) {
   for (const p of particles) {
-    ctx.save();
     ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
-    if (p.ring) {
-      ctx.strokeStyle = p.color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * (1 + (1 - p.life) * 3), 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  CHARACTER DRAWING (Simplified for rhythm game)                   ║
+// ║  CHARACTER DRAWING                                                ║
 // ╚══════════════════════════════════════════════════════════════════╝
-function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
+function drawCube(ctx, x, y, scale, options = {}) {
+  const { bounce = 0, glow = 0, blink = false, talk = false } = options;
+  
   ctx.save();
   ctx.translate(x, y + bounce);
   ctx.scale(scale, scale);
   
   if (glow > 0) {
-    ctx.shadowColor = COLORS.lane1;
+    ctx.shadowColor = COLORS.cube;
     ctx.shadowBlur = 30 * glow;
   }
   
@@ -230,7 +202,7 @@ function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(0, -25, 40, 35, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Ears
+  // Ears with dark tips
   ctx.beginPath();
   ctx.moveTo(-28, -45);
   ctx.quadraticCurveTo(-22, -80, -8, -70);
@@ -242,7 +214,6 @@ function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.quadraticCurveTo(5, -55, 10, -45);
   ctx.fill();
   
-  // Dark points on ears
   ctx.fillStyle = darkPoint;
   ctx.beginPath();
   ctx.moveTo(-24, -48);
@@ -262,31 +233,32 @@ function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.fill();
   
   // Eyes
+  const eyeOpen = blink ? 0.1 : 1;
   ctx.fillStyle = '#5AAFE8';
   ctx.beginPath();
-  ctx.ellipse(-12, -32, 8, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(-12, -32, 8, 9 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(12, -32, 8, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(12, -32, 8, 9 * eyeOpen, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Pupils
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(-12, -32, 4, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(12, -32, 4, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Eye highlights
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(-14, -34, 2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(10, -34, 2, 0, Math.PI * 2);
-  ctx.fill();
+  if (!blink) {
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(-12, -32, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(12, -32, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-14, -34, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(10, -34, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
   
   // Nose
   ctx.fillStyle = '#FFB6C1';
@@ -297,7 +269,15 @@ function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.closePath();
   ctx.fill();
   
-  // Square tail!
+  // Mouth (open when talking)
+  if (talk) {
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.ellipse(0, -6, 6, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Square tail
   ctx.fillStyle = cream;
   ctx.fillRect(35, -20, 15, 10);
   ctx.fillRect(45, -55, 10, 40);
@@ -307,13 +287,15 @@ function drawCube(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.restore();
 }
 
-function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
+function drawWillow(ctx, x, y, scale, options = {}) {
+  const { bounce = 0, glow = 0 } = options;
+  
   ctx.save();
   ctx.translate(x, y + bounce);
   ctx.scale(scale, scale);
   
   if (glow > 0) {
-    ctx.shadowColor = COLORS.lane2;
+    ctx.shadowColor = COLORS.willow;
     ctx.shadowBlur = 30 * glow;
   }
   
@@ -325,7 +307,7 @@ function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(0, 20, 48, 38, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Chest (tan)
+  // Chest
   ctx.fillStyle = tan;
   ctx.beginPath();
   ctx.ellipse(0, 15, 25, 30, 0, 0, Math.PI * 2);
@@ -337,7 +319,7 @@ function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(0, -28, 42, 38, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Cheeks (tan)
+  // Cheeks
   ctx.fillStyle = tan;
   ctx.beginPath();
   ctx.ellipse(-22, -15, 15, 12, 0, 0, Math.PI * 2);
@@ -346,7 +328,7 @@ function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(22, -15, 15, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Muzzle (tan)
+  // Muzzle
   ctx.beginPath();
   ctx.ellipse(0, -8, 14, 10, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -373,7 +355,6 @@ function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(14, -35, 7, 8, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Pupils
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.ellipse(-14, -35, 3, 4, 0, 0, Math.PI * 2);
@@ -406,19 +387,20 @@ function drawWillow(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.moveTo(40, 10);
   ctx.bezierCurveTo(60, 0, 65, -30, 50, -40);
   ctx.bezierCurveTo(35, -45, 30, -30, 35, -20);
-  ctx.bezierCurveTo(38, -15, 45, -10, 42, 5);
   ctx.fill();
   
   ctx.restore();
 }
 
-function drawDropje(ctx, x, y, scale, bounce = 0, glow = 0) {
+function drawDropje(ctx, x, y, scale, options = {}) {
+  const { bounce = 0, glow = 0 } = options;
+  
   ctx.save();
   ctx.translate(x, y + bounce);
   ctx.scale(scale, scale);
   
   if (glow > 0) {
-    ctx.shadowColor = COLORS.lane3;
+    ctx.shadowColor = COLORS.dropje;
     ctx.shadowBlur = 30 * glow;
   }
   
@@ -457,7 +439,6 @@ function drawDropje(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(16, -40, 9, 10, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Pupils
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.ellipse(-16, -40, 4, 5, 0, 0, Math.PI * 2);
@@ -466,7 +447,6 @@ function drawDropje(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(16, -40, 4, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eye highlights
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   ctx.arc(-18, -42, 2.5, 0, Math.PI * 2);
@@ -481,637 +461,1096 @@ function drawDropje(ctx, x, y, scale, bounce = 0, glow = 0) {
   ctx.ellipse(0, -15, 10, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Happy tongue
+  // Tongue
   ctx.fillStyle = '#E88090';
   ctx.beginPath();
   ctx.moveTo(-6, -5);
   ctx.quadraticCurveTo(0, 15, 6, -5);
   ctx.fill();
   
-  // Otter tail
+  // Tail
   ctx.fillStyle = black;
   ctx.beginPath();
   ctx.moveTo(45, 15);
   ctx.bezierCurveTo(55, 5, 60, -25, 50, -45);
   ctx.bezierCurveTo(45, -50, 40, -45, 42, -35);
-  ctx.bezierCurveTo(44, -20, 48, 0, 45, 15);
   ctx.fill();
   
   ctx.restore();
 }
 
-const drawPet = [drawCube, drawWillow, drawDropje];
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  UI COMPONENTS                                                    ║
+// ╚══════════════════════════════════════════════════════════════════╝
+function drawButton(ctx, x, y, w, h, text, color, hover = false) {
+  ctx.save();
+  
+  if (hover) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+  }
+  
+  // Button bg
+  ctx.fillStyle = hover ? color : COLORS.card;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 12);
+  ctx.fill();
+  
+  // Border
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Text
+  ctx.fillStyle = hover ? '#fff' : color;
+  ctx.font = 'bold 24px Georgia';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + w/2, y + h/2);
+  
+  ctx.restore();
+}
+
+function drawCard(ctx, x, y, w, h, color) {
+  ctx.fillStyle = COLORS.card;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 16);
+  ctx.fill();
+  
+  ctx.strokeStyle = color || COLORS.cardBorder;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  GAME STATE                                                       ║
+// ║  MUSIC NOTATION DRAWING                                           ║
+// ╚══════════════════════════════════════════════════════════════════╝
+const Notation = {
+  // Draw a whole note
+  drawWhole(ctx, x, y, size = 20) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
+    ctx.stroke();
+  },
+  
+  // Draw a half note
+  drawHalf(ctx, x, y, size = 16, stemUp = true) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Stem
+    ctx.fillStyle = '#fff';
+    const stemX = stemUp ? x + size - 2 : x - size + 2;
+    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
+    ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
+  },
+  
+  // Draw a quarter note
+  drawQuarter(ctx, x, y, size = 14, stemUp = true) {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Stem
+    const stemX = stemUp ? x + size - 2 : x - size + 2;
+    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
+    ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
+  },
+  
+  // Draw an eighth note
+  drawEighth(ctx, x, y, size = 14, stemUp = true) {
+    this.drawQuarter(ctx, x, y, size, stemUp);
+    
+    // Flag
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    const stemX = stemUp ? x + size : x - size + 2;
+    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
+    
+    ctx.beginPath();
+    if (stemUp) {
+      ctx.moveTo(stemX, stemY);
+      ctx.quadraticCurveTo(stemX + 15, stemY + 15, stemX + 5, stemY + 30);
+    } else {
+      ctx.moveTo(stemX, stemY);
+      ctx.quadraticCurveTo(stemX - 15, stemY - 15, stemX - 5, stemY - 30);
+    }
+    ctx.stroke();
+  },
+  
+  // Draw a rest
+  drawRest(ctx, x, y, type, size = 20) {
+    ctx.fillStyle = '#fff';
+    ctx.font = `${size * 2}px Georgia`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Use simple symbols for rests
+    if (type === 'whole') {
+      ctx.fillRect(x - size, y - 5, size * 2, 8);
+    } else if (type === 'half') {
+      ctx.fillRect(x - size, y, size * 2, 8);
+    } else if (type === 'quarter') {
+      // Squiggly rest
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 15);
+      ctx.lineTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.lineTo(x + 5, y + 15);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    } else if (type === 'eighth') {
+      ctx.beginPath();
+      ctx.arc(x, y - 8, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(x, y - 8, 3, 20);
+    }
+  },
+  
+  // Draw a note by type
+  drawNote(ctx, x, y, type, size = 14) {
+    switch(type) {
+      case 'whole': this.drawWhole(ctx, x, y, size + 6); break;
+      case 'half': this.drawHalf(ctx, x, y, size + 2); break;
+      case 'quarter': this.drawQuarter(ctx, x, y, size); break;
+      case 'eighth': this.drawEighth(ctx, x, y, size); break;
+    }
+  }
+};
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  GAME STATE MACHINE                                               ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const Game = {
-  screen: 'title', // title, playing, results
+  screen: 'title',
   time: 0,
-  beatTime: 0,
-  score: 0,
-  combo: 0,
-  maxCombo: 0,
-  perfects: 0,
-  goods: 0,
-  misses: 0,
-  notes: [],
-  hitEffects: [],
-  laneGlow: [0, 0, 0],
-  petBounce: [0, 0, 0],
-  shakeAmount: 0,
   
-  // Note timing
-  noteSpeed: 600, // pixels per second
-  hitY: H - 220, // where notes should be hit
-  perfectWindow: 0.05, // seconds
-  goodWindow: 0.12,
+  // Teacher select
+  selectedTeacher: null,
+  teacherHover: -1,
   
-  // Song data (beat, lane) - lane 0,1,2
-  songBeats: [],
-  currentSongIndex: 0,
-  songStartBeat: 4, // beats before first note
-  
-  init() {
-    this.generateSong();
-  },
-  
-  generateSong() {
-    // Generate a procedural song pattern
-    this.songBeats = [];
-    const patterns = [
-      // Simple alternating
-      [[0], [1], [2], [1]],
-      // Singles with gaps
-      [[0], [], [2], []],
-      [[1], [], [1], []],
-      // Doubles
-      [[0, 2], [], [1], []],
-      [[0, 1], [], [1, 2], []],
-      // Fast runs
-      [[0], [1], [2], [1], [0], [1], [2], [1]],
-      // Syncopated
-      [[0], [], [1], [2], [], [0], [1], []],
-    ];
-    
-    let beat = this.songStartBeat;
-    const songLength = 64; // beats
-    
-    while (beat < songLength) {
-      const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-      for (const lanes of pattern) {
-        if (beat >= songLength) break;
-        for (const lane of lanes) {
-          this.songBeats.push({ beat, lane });
-        }
-        beat += 0.5; // 8th notes
-      }
-    }
-  },
-  
-  startGame() {
-    this.screen = 'playing';
-    this.time = 0;
-    this.beatTime = 0;
-    this.score = 0;
-    this.combo = 0;
-    this.maxCombo = 0;
-    this.perfects = 0;
-    this.goods = 0;
-    this.misses = 0;
-    this.notes = [];
-    this.hitEffects = [];
-    this.currentSongIndex = 0;
-    this.laneGlow = [0, 0, 0];
-    this.petBounce = [0, 0, 0];
-    
-    Audio.init();
-    Audio.startTime = Audio.ctx.currentTime;
-    this.generateSong();
-  },
-  
-  spawnNotes() {
-    const currentBeat = Audio.getCurrentBeat();
-    const lookAhead = 2; // spawn notes 2 beats ahead
-    
-    while (this.currentSongIndex < this.songBeats.length) {
-      const note = this.songBeats[this.currentSongIndex];
-      if (note.beat > currentBeat + lookAhead) break;
-      
-      const timeUntilHit = (note.beat - currentBeat) * Audio.beatInterval;
-      this.notes.push({
-        lane: note.lane,
-        targetTime: this.time + timeUntilHit,
-        y: this.hitY - timeUntilHit * this.noteSpeed,
-        hit: false,
-        missed: false,
-      });
-      this.currentSongIndex++;
-    }
-  },
-  
-  updateNotes(dt) {
-    const hitY = this.hitY;
-    
-    for (let i = this.notes.length - 1; i >= 0; i--) {
-      const note = this.notes[i];
-      note.y += this.noteSpeed * dt;
-      
-      // Check for miss
-      if (!note.hit && !note.missed && note.y > hitY + 80) {
-        note.missed = true;
-        this.combo = 0;
-        this.misses++;
-        this.shakeAmount = 8;
-        Audio.playMiss();
-        this.hitEffects.push({
-          x: this.getLaneX(note.lane),
-          y: hitY,
-          text: 'MISS',
-          color: COLORS.miss,
-          life: 1,
-        });
-      }
-      
-      // Remove old notes
-      if (note.y > H + 50 || note.hit) {
-        this.notes.splice(i, 1);
-      }
-    }
-  },
-  
-  getLaneX(lane) {
-    const laneWidth = 180;
-    const startX = (W - laneWidth * 3) / 2 + laneWidth / 2;
-    return startX + lane * laneWidth;
-  },
-  
-  hitLane(lane) {
-    const hitY = this.hitY;
-    let bestNote = null;
-    let bestDist = Infinity;
-    
-    for (const note of this.notes) {
-      if (note.lane !== lane || note.hit || note.missed) continue;
-      const dist = Math.abs(note.y - hitY);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestNote = note;
-      }
-    }
-    
-    if (!bestNote) return;
-    
-    const timeDiff = Math.abs(bestNote.y - hitY) / this.noteSpeed;
-    const x = this.getLaneX(lane);
-    
-    if (timeDiff <= this.perfectWindow) {
-      bestNote.hit = true;
-      this.combo++;
-      this.perfects++;
-      this.score += 100 * (1 + Math.floor(this.combo / 10) * 0.1);
-      this.laneGlow[lane] = 1;
-      this.petBounce[lane] = -20;
-      Audio.playPerfect();
-      spawnPerfectBurst(x, hitY);
-      this.hitEffects.push({
-        x, y: hitY - 30,
-        text: 'PERFECT',
-        color: COLORS.perfect,
-        life: 1,
-      });
-    } else if (timeDiff <= this.goodWindow) {
-      bestNote.hit = true;
-      this.combo++;
-      this.goods++;
-      this.score += 50 * (1 + Math.floor(this.combo / 10) * 0.1);
-      this.laneGlow[lane] = 0.6;
-      this.petBounce[lane] = -12;
-      Audio.playGood();
-      spawnParticles(x, hitY, COLORS.good, 8, 150);
-      this.hitEffects.push({
-        x, y: hitY - 30,
-        text: 'GOOD',
-        color: COLORS.good,
-        life: 1,
-      });
-    }
-    
-    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-  },
+  // Current lesson state
+  lesson: null,
   
   update(dt) {
     this.time += dt;
-    
-    // Decay effects
-    for (let i = 0; i < 3; i++) {
-      this.laneGlow[i] *= 0.9;
-      this.petBounce[i] *= 0.85;
-    }
-    this.shakeAmount *= 0.9;
-    
-    // Update hit effects
-    for (let i = this.hitEffects.length - 1; i >= 0; i--) {
-      this.hitEffects[i].life -= dt * 2;
-      this.hitEffects[i].y -= dt * 100;
-      if (this.hitEffects[i].life <= 0) this.hitEffects.splice(i, 1);
-    }
-    
     updateParticles(dt);
     
-    if (this.screen === 'playing') {
-      this.spawnNotes();
-      this.updateNotes(dt);
-      
-      // Beat pulse for background music simulation
-      const beat = Audio.getCurrentBeat();
-      if (Math.floor(beat) !== Math.floor(beat - dt / Audio.beatInterval)) {
-        if (Math.floor(beat) % 2 === 0) Audio.playKick();
-        else Audio.playSnare();
-      }
-      
-      // End song
-      if (this.currentSongIndex >= this.songBeats.length && this.notes.length === 0) {
-        this.screen = 'results';
-      }
+    if (this.screen === 'lesson' && this.lesson) {
+      this.lesson.update(dt);
     }
   },
   
   render(ctx) {
-    // Screen shake
-    ctx.save();
-    if (this.shakeAmount > 0.5) {
-      ctx.translate(
-        (Math.random() - 0.5) * this.shakeAmount,
-        (Math.random() - 0.5) * this.shakeAmount
-      );
+    // Clear
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, W, H);
+    
+    switch(this.screen) {
+      case 'title': this.renderTitle(ctx); break;
+      case 'teacherSelect': this.renderTeacherSelect(ctx); break;
+      case 'lessonSelect': this.renderLessonSelect(ctx); break;
+      case 'lesson': this.lesson?.render(ctx); break;
     }
     
-    if (this.screen === 'title') {
-      this.renderTitle(ctx);
-    } else if (this.screen === 'playing') {
-      this.renderGame(ctx);
-    } else if (this.screen === 'results') {
-      this.renderResults(ctx);
-    }
-    
-    ctx.restore();
+    renderParticles(ctx);
   },
   
   renderTitle(ctx) {
-    // Background
-    const gradient = ctx.createLinearGradient(0, 0, 0, H);
-    gradient.addColorStop(0, '#1a0a2e');
-    gradient.addColorStop(0.5, '#16213e');
-    gradient.addColorStop(1, '#0d1b36');
-    ctx.fillStyle = gradient;
+    const t = this.time;
+    
+    // Gradient background
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a2e');
+    grad.addColorStop(0.5, '#16213e');
+    grad.addColorStop(1, '#0d1b36');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
-    // Floating particles
-    const t = this.time;
-    for (let i = 0; i < 20; i++) {
-      const x = ((i * 137 + t * 20) % W);
-      const y = ((i * 97 + t * 10) % H);
-      ctx.fillStyle = `rgba(255,255,255,${0.1 + 0.1 * Math.sin(t + i)})`;
+    // Stars
+    for (let i = 0; i < 30; i++) {
+      const x = (i * 137) % W;
+      const y = (i * 97) % (H * 0.6);
+      const twinkle = 0.3 + 0.7 * Math.sin(t * 2 + i);
+      ctx.fillStyle = `rgba(255,255,255,${twinkle * 0.5})`;
       ctx.beginPath();
-      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
       ctx.fill();
     }
     
     // Title
-    const glow = 0.5 + 0.3 * Math.sin(t * 2);
     ctx.save();
-    ctx.shadowColor = COLORS.lane1;
-    ctx.shadowBlur = 40 * glow;
-    ctx.fillStyle = COLORS.lane1;
-    ctx.font = 'bold 80px Georgia';
+    ctx.shadowColor = COLORS.cube;
+    ctx.shadowBlur = 30 + 10 * Math.sin(t * 2);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 72px Georgia';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('PURRGATORY', W/2, H * 0.25);
+    ctx.fillText('PURRGATORY', W/2, 200);
     ctx.restore();
     
     // Subtitle
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '28px Georgia';
-    ctx.fillText('Three pets. One beat. Don\'t miss.', W/2, H * 0.25 + 60);
+    ctx.textAlign = 'center';
+    ctx.fillText('Music Academy', W/2, 260);
     
     // Characters
-    const petY = H * 0.55;
-    const bounce = Math.sin(t * 3) * 5;
-    drawCube(ctx, W/2 - 180, petY, 0.8, Math.sin(t * 3) * 5, 0.3);
-    drawWillow(ctx, W/2, petY, 0.8, Math.sin(t * 3 + 1) * 5, 0.3);
-    drawDropje(ctx, W/2 + 180, petY, 0.8, Math.sin(t * 3 + 2) * 5, 0.3);
+    const bounce = Math.sin(t * 2) * 8;
+    drawCube(ctx, W/2 - 180, 500, 0.7, { bounce: Math.sin(t * 2) * 8 });
+    drawWillow(ctx, W/2, 500, 0.7, { bounce: Math.sin(t * 2 + 1) * 8 });
+    drawDropje(ctx, W/2 + 180, 500, 0.7, { bounce: Math.sin(t * 2 + 2) * 8 });
     
-    // Start prompt
-    const alpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 2));
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 36px Georgia';
-    ctx.fillText('TAP TO START', W/2, H * 0.85);
-    ctx.globalAlpha = 1;
+    // Teacher names
+    ctx.font = '20px Georgia';
+    ctx.fillStyle = COLORS.cube;
+    ctx.fillText('Rhythm', W/2 - 180, 600);
+    ctx.fillStyle = COLORS.willow;
+    ctx.fillText('Harmony', W/2, 600);
+    ctx.fillStyle = COLORS.dropje;
+    ctx.fillText('Melody', W/2 + 180, 600);
     
-    // Lane color hints
+    // Start button
+    const btnY = 750;
+    const hover = this.teacherHover === 99;
+    drawButton(ctx, W/2 - 120, btnY, 240, 60, 'START LEARNING', COLORS.cube, hover);
+    
+    // Tagline
+    ctx.fillStyle = COLORS.textMuted;
     ctx.font = '18px Georgia';
-    ctx.fillStyle = COLORS.lane1;
-    ctx.fillText('CUBE', W/2 - 180, petY + 80);
-    ctx.fillStyle = COLORS.lane2;
-    ctx.fillText('WILLOW', W/2, petY + 80);
-    ctx.fillStyle = COLORS.lane3;
-    ctx.fillText('DROPJE', W/2 + 180, petY + 80);
+    ctx.fillText('Three teachers. Three disciplines. One musical journey.', W/2, 880);
   },
   
-  renderGame(ctx) {
+  renderTeacherSelect(ctx) {
+    const t = this.time;
+    
     // Background
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, W, H);
-    
-    const laneWidth = 180;
-    const startX = (W - laneWidth * 3) / 2;
-    const laneColors = [COLORS.lane1, COLORS.lane2, COLORS.lane3];
-    
-    // Lane backgrounds
-    for (let i = 0; i < 3; i++) {
-      const x = startX + i * laneWidth;
-      
-      // Lane gradient
-      const grad = ctx.createLinearGradient(x, 0, x, H);
-      grad.addColorStop(0, 'rgba(30,30,50,0.3)');
-      grad.addColorStop(0.7, 'rgba(30,30,50,0.5)');
-      grad.addColorStop(1, 'rgba(30,30,50,0.8)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x, 0, laneWidth, H);
-      
-      // Lane dividers
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
-      
-      // Hit zone glow
-      if (this.laneGlow[i] > 0.1) {
-        ctx.save();
-        ctx.globalAlpha = this.laneGlow[i] * 0.5;
-        const glowGrad = ctx.createRadialGradient(
-          x + laneWidth/2, this.hitY, 0,
-          x + laneWidth/2, this.hitY, 120
-        );
-        glowGrad.addColorStop(0, laneColors[i]);
-        glowGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = glowGrad;
-        ctx.fillRect(x, this.hitY - 120, laneWidth, 240);
-        ctx.restore();
-      }
-    }
-    
-    // Hit line
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(startX, this.hitY);
-    ctx.lineTo(startX + laneWidth * 3, this.hitY);
-    ctx.stroke();
-    
-    // Hit zone indicators
-    for (let i = 0; i < 3; i++) {
-      const x = this.getLaneX(i);
-      ctx.strokeStyle = laneColors[i];
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(x, this.hitY, 40, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Inner circle
-      ctx.strokeStyle = `rgba(255,255,255,0.3)`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, this.hitY, 25, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    
-    // Notes
-    for (const note of this.notes) {
-      if (note.hit || note.missed) continue;
-      const x = this.getLaneX(note.lane);
-      const color = laneColors[note.lane];
-      
-      // Note glow
-      ctx.save();
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 15;
-      
-      // Note body
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, note.y, 30, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Note inner
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.arc(x, note.y, 18, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.restore();
-    }
-    
-    // Particles
-    renderParticles(ctx);
-    
-    // Hit effects (text)
-    for (const fx of this.hitEffects) {
-      ctx.save();
-      ctx.globalAlpha = fx.life;
-      ctx.fillStyle = fx.color;
-      ctx.font = 'bold 28px Georgia';
-      ctx.textAlign = 'center';
-      ctx.fillText(fx.text, fx.x, fx.y);
-      ctx.restore();
-    }
-    
-    // Characters at bottom
-    const petY = H - 90;
-    drawCube(ctx, this.getLaneX(0), petY, 0.5, this.petBounce[0], this.laneGlow[0]);
-    drawWillow(ctx, this.getLaneX(1), petY, 0.5, this.petBounce[1], this.laneGlow[1]);
-    drawDropje(ctx, this.getLaneX(2), petY, 0.5, this.petBounce[2], this.laneGlow[2]);
-    
-    // HUD
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 32px Georgia';
-    ctx.textAlign = 'left';
-    ctx.fillText(Math.floor(this.score).toString(), 30, 50);
-    
-    ctx.textAlign = 'right';
-    if (this.combo > 0) {
-      const comboScale = 1 + Math.min(this.combo / 50, 0.5);
-      ctx.save();
-      ctx.translate(W - 30, 50);
-      ctx.scale(comboScale, comboScale);
-      ctx.fillStyle = this.combo >= 10 ? COLORS.perfect : '#fff';
-      ctx.fillText(`${this.combo}x`, 0, 0);
-      ctx.restore();
-    }
-  },
-  
-  renderResults(ctx) {
-    // Background
-    const gradient = ctx.createLinearGradient(0, 0, 0, H);
-    gradient.addColorStop(0, '#1a0a2e');
-    gradient.addColorStop(1, '#0d1b36');
-    ctx.fillStyle = gradient;
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a2e');
+    grad.addColorStop(1, '#0d1b36');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     
     // Title
-    ctx.fillStyle = COLORS.perfect;
-    ctx.font = 'bold 60px Georgia';
-    ctx.textAlign = 'center';
-    ctx.fillText('SONG COMPLETE!', W/2, 150);
-    
-    // Score
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 80px Georgia';
-    ctx.fillText(Math.floor(this.score).toString(), W/2, 280);
+    ctx.font = 'bold 42px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Choose Your Teacher', W/2, 80);
     
-    // Stats
-    ctx.font = '32px Georgia';
-    const stats = [
-      { label: 'PERFECT', value: this.perfects, color: COLORS.perfect },
-      { label: 'GOOD', value: this.goods, color: COLORS.good },
-      { label: 'MISS', value: this.misses, color: COLORS.miss },
-      { label: 'MAX COMBO', value: this.maxCombo, color: '#fff' },
+    // Teacher cards
+    const teachers = [
+      {
+        id: 'cube',
+        name: 'Cube',
+        title: 'Rhythm Sensei',
+        desc: 'Learn to read and feel the beat. Master note values, time signatures, and rhythmic patterns.',
+        color: COLORS.cube,
+        draw: drawCube,
+      },
+      {
+        id: 'willow', 
+        name: 'Willow',
+        title: 'Harmony Master',
+        desc: 'Discover the art of chords and scales. Build harmonic progressions and train your ear.',
+        color: COLORS.willow,
+        draw: drawWillow,
+        locked: true,
+      },
+      {
+        id: 'dropje',
+        name: 'Dropje', 
+        title: 'Melody Maker',
+        desc: 'Explore melodic patterns and composition. Play by ear and create your own tunes.',
+        color: COLORS.dropje,
+        draw: drawDropje,
+        locked: true,
+      },
     ];
     
-    stats.forEach((stat, i) => {
-      const y = 380 + i * 60;
+    teachers.forEach((teacher, i) => {
+      const cardY = 150 + i * 320;
+      const hover = this.teacherHover === i && !teacher.locked;
+      const cardH = 280;
+      
+      // Card
+      ctx.save();
+      if (hover) {
+        ctx.shadowColor = teacher.color;
+        ctx.shadowBlur = 20;
+      }
+      if (teacher.locked) ctx.globalAlpha = 0.5;
+      
+      drawCard(ctx, 40, cardY, W - 80, cardH, hover ? teacher.color : COLORS.cardBorder);
+      
+      // Character
+      teacher.draw(ctx, 140, cardY + 130, 0.55, { 
+        bounce: hover ? Math.sin(t * 4) * 5 : 0,
+        glow: hover ? 0.5 : 0 
+      });
+      
+      // Text
+      ctx.fillStyle = teacher.color;
+      ctx.font = 'bold 32px Georgia';
       ctx.textAlign = 'left';
+      ctx.fillText(teacher.name, 230, cardY + 50);
+      
       ctx.fillStyle = COLORS.textDim;
-      ctx.fillText(stat.label, W/2 - 150, y);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = stat.color;
-      ctx.fillText(stat.value.toString(), W/2 + 150, y);
+      ctx.font = '20px Georgia';
+      ctx.fillText(teacher.title, 230, cardY + 85);
+      
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '16px Georgia';
+      // Word wrap description
+      const words = teacher.desc.split(' ');
+      let line = '';
+      let lineY = cardY + 130;
+      const maxWidth = W - 280;
+      
+      for (const word of words) {
+        const test = line + word + ' ';
+        if (ctx.measureText(test).width > maxWidth) {
+          ctx.fillText(line, 230, lineY);
+          line = word + ' ';
+          lineY += 24;
+        } else {
+          line = test;
+        }
+      }
+      ctx.fillText(line, 230, lineY);
+      
+      // Locked overlay
+      if (teacher.locked) {
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.roundRect(40, cardY, W - 80, cardH, 16);
+        ctx.fill();
+        
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = COLORS.textMuted;
+        ctx.font = 'bold 24px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔒 Coming Soon', W/2, cardY + cardH/2);
+      }
+      
+      ctx.restore();
     });
     
-    // Grade
-    const total = this.perfects + this.goods + this.misses;
-    const accuracy = total > 0 ? (this.perfects + this.goods * 0.5) / total : 0;
-    let grade = 'F';
-    if (accuracy >= 0.95) grade = 'S';
-    else if (accuracy >= 0.9) grade = 'A';
-    else if (accuracy >= 0.8) grade = 'B';
-    else if (accuracy >= 0.7) grade = 'C';
-    else if (accuracy >= 0.5) grade = 'D';
-    
-    ctx.save();
-    ctx.shadowColor = COLORS.perfect;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = COLORS.perfect;
-    ctx.font = 'bold 120px Georgia';
-    ctx.textAlign = 'center';
-    ctx.fillText(grade, W/2, 720);
-    ctx.restore();
-    
-    // Characters celebrating
+    // Back button
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('← Back', 40, H - 40);
+  },
+  
+  renderLessonSelect(ctx) {
     const t = this.time;
-    drawCube(ctx, W/2 - 180, 900, 0.7, Math.sin(t * 5) * 10, 0.5);
-    drawWillow(ctx, W/2, 900, 0.7, Math.sin(t * 5 + 1) * 10, 0.5);
-    drawDropje(ctx, W/2 + 180, 900, 0.7, Math.sin(t * 5 + 2) * 10, 0.5);
     
-    // Retry prompt
-    const alpha = 0.4 + 0.6 * Math.abs(Math.sin(t * 2));
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 32px Georgia';
-    ctx.fillText('TAP TO PLAY AGAIN', W/2, H - 100);
-    ctx.globalAlpha = 1;
+    // Background with teacher color tint
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a1e');
+    grad.addColorStop(1, '#0d0d1a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Teacher header
+    drawCube(ctx, 100, 100, 0.5, { bounce: Math.sin(t * 3) * 3 });
+    
+    ctx.fillStyle = COLORS.cube;
+    ctx.font = 'bold 36px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('Cube\'s Rhythm Class', 180, 85);
+    
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.fillText('Master the art of rhythm notation', 180, 120);
+    
+    // Lessons
+    const lessons = [
+      { id: 1, name: 'Quarter Notes', desc: 'The heartbeat of music', unlocked: true },
+      { id: 2, name: 'Half & Whole Notes', desc: 'Learning to hold the beat', unlocked: true },
+      { id: 3, name: 'Eighth Notes', desc: 'Double time excitement', unlocked: true },
+      { id: 4, name: 'Rests', desc: 'The power of silence', unlocked: false },
+      { id: 5, name: 'Mixed Rhythms', desc: 'Putting it all together', unlocked: false },
+      { id: 6, name: 'Time Signatures', desc: '4/4, 3/4, and beyond', unlocked: false },
+    ];
+    
+    lessons.forEach((lesson, i) => {
+      const y = 200 + i * 110;
+      const hover = this.teacherHover === i && lesson.unlocked;
+      
+      ctx.save();
+      if (!lesson.unlocked) ctx.globalAlpha = 0.4;
+      
+      // Card
+      if (hover) {
+        ctx.shadowColor = COLORS.cube;
+        ctx.shadowBlur = 15;
+      }
+      
+      ctx.fillStyle = COLORS.card;
+      ctx.beginPath();
+      ctx.roundRect(40, y, W - 80, 90, 12);
+      ctx.fill();
+      
+      ctx.strokeStyle = hover ? COLORS.cube : COLORS.cardBorder;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Lesson number
+      ctx.fillStyle = hover ? COLORS.cube : COLORS.textDim;
+      ctx.font = 'bold 36px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(lesson.id.toString(), 100, y + 52);
+      
+      // Lesson info
+      ctx.fillStyle = lesson.unlocked ? '#fff' : COLORS.textMuted;
+      ctx.font = 'bold 24px Georgia';
+      ctx.textAlign = 'left';
+      ctx.fillText(lesson.name, 150, y + 40);
+      
+      ctx.fillStyle = COLORS.textDim;
+      ctx.font = '18px Georgia';
+      ctx.fillText(lesson.desc, 150, y + 68);
+      
+      // Lock or stars
+      if (!lesson.unlocked) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = COLORS.textMuted;
+        ctx.font = '24px Georgia';
+        ctx.textAlign = 'right';
+        ctx.fillText('🔒', W - 60, y + 52);
+      }
+      
+      ctx.restore();
+    });
+    
+    // Back button
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('← Back', 40, H - 40);
+  },
+  
+  handleTap(x, y) {
+    Audio.init();
+    Audio.resume();
+    
+    if (this.screen === 'title') {
+      // Start button
+      if (hitRect(x, y, W/2 - 120, 750, 240, 60)) {
+        Audio.playClick();
+        this.screen = 'teacherSelect';
+        spawnParticles(W/2, 780, COLORS.cube, 15);
+      }
+    }
+    else if (this.screen === 'teacherSelect') {
+      // Back button
+      if (x < 120 && y > H - 70) {
+        Audio.playClick();
+        this.screen = 'title';
+        return;
+      }
+      
+      // Teacher cards
+      const teachers = ['cube', 'willow', 'dropje'];
+      for (let i = 0; i < 3; i++) {
+        const cardY = 150 + i * 320;
+        if (hitRect(x, y, 40, cardY, W - 80, 280)) {
+          if (i === 0) { // Only Cube unlocked
+            Audio.playClick();
+            this.selectedTeacher = teachers[i];
+            this.screen = 'lessonSelect';
+            spawnParticles(x, y, COLORS.cube, 12);
+          }
+          break;
+        }
+      }
+    }
+    else if (this.screen === 'lessonSelect') {
+      // Back button
+      if (x < 120 && y > H - 70) {
+        Audio.playClick();
+        this.screen = 'teacherSelect';
+        return;
+      }
+      
+      // Lesson cards
+      for (let i = 0; i < 3; i++) { // First 3 lessons unlocked
+        const ly = 200 + i * 110;
+        if (hitRect(x, y, 40, ly, W - 80, 90)) {
+          Audio.playClick();
+          this.startLesson(i + 1);
+          spawnParticles(x, y, COLORS.cube, 15);
+          break;
+        }
+      }
+    }
+    else if (this.screen === 'lesson' && this.lesson) {
+      this.lesson.handleTap(x, y);
+    }
+  },
+  
+  handleMove(x, y) {
+    this.teacherHover = -1;
+    
+    if (this.screen === 'title') {
+      if (hitRect(x, y, W/2 - 120, 750, 240, 60)) {
+        this.teacherHover = 99;
+      }
+    }
+    else if (this.screen === 'teacherSelect') {
+      for (let i = 0; i < 3; i++) {
+        const cardY = 150 + i * 320;
+        if (hitRect(x, y, 40, cardY, W - 80, 280)) {
+          this.teacherHover = i;
+          break;
+        }
+      }
+    }
+    else if (this.screen === 'lessonSelect') {
+      for (let i = 0; i < 6; i++) {
+        const ly = 200 + i * 110;
+        if (hitRect(x, y, 40, ly, W - 80, 90)) {
+          this.teacherHover = i;
+          break;
+        }
+      }
+    }
+  },
+  
+  startLesson(lessonNum) {
+    this.screen = 'lesson';
+    this.lesson = new RhythmLesson(lessonNum);
+  },
+  
+  endLesson() {
+    this.screen = 'lessonSelect';
+    this.lesson = null;
   }
 };
 
 // ╔══════════════════════════════════════════════════════════════════╗
+// ║  RHYTHM LESSON                                                    ║
+// ╚══════════════════════════════════════════════════════════════════╝
+class RhythmLesson {
+  constructor(lessonNum) {
+    this.lessonNum = lessonNum;
+    this.phase = 'intro'; // intro, demo, practice, complete
+    this.time = 0;
+    this.cubeAnim = { bounce: 0, blink: false, talk: false, blinkTimer: 3 };
+    
+    // Lesson content based on lesson number
+    this.setupLesson();
+    
+    this.currentPattern = 0;
+    this.playerTaps = [];
+    this.expectedTaps = [];
+    this.isPlaying = false;
+    this.playbackTime = 0;
+    this.bpm = 80;
+    this.beatDuration = 60 / this.bpm;
+    
+    this.score = 0;
+    this.attempts = 0;
+    this.successes = 0;
+    
+    this.feedback = null;
+    this.feedbackTimer = 0;
+    
+    this.demoPlaying = false;
+    this.demoNotes = [];
+    this.demoIndex = 0;
+  }
+  
+  setupLesson() {
+    if (this.lessonNum === 1) {
+      this.title = 'Quarter Notes';
+      this.introText = [
+        "Welcome! I'm Cube, your rhythm teacher.",
+        "Let's start with quarter notes.",
+        "A quarter note (♩) gets ONE beat.",
+        "In 4/4 time, we count: 1, 2, 3, 4",
+        "Tap along with the beat!"
+      ];
+      this.noteTypes = ['quarter'];
+      this.patterns = [
+        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+        { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+      ];
+    }
+    else if (this.lessonNum === 2) {
+      this.title = 'Half & Whole Notes';
+      this.introText = [
+        "Great progress! Now let's slow down.",
+        "A half note (𝅗𝅥) gets TWO beats.",
+        "A whole note (𝅝) gets FOUR beats.",
+        "Hold the note for its full value!",
+        "Listen, then tap the rhythm."
+      ];
+      this.noteTypes = ['half', 'whole', 'quarter'];
+      this.patterns = [
+        { notes: ['half', 'half'], beats: [0, 2] },
+        { notes: ['whole'], beats: [0] },
+        { notes: ['half', 'quarter', 'quarter'], beats: [0, 2, 3] },
+      ];
+    }
+    else if (this.lessonNum === 3) {
+      this.title = 'Eighth Notes';
+      this.introText = [
+        "Time to speed up!",
+        "An eighth note (♪) gets HALF a beat.",
+        "Two eighths = one quarter note.",
+        "We count: 1 & 2 & 3 & 4 &",
+        "Feel the groove!"
+      ];
+      this.noteTypes = ['eighth', 'quarter'];
+      this.patterns = [
+        { notes: ['eighth', 'eighth', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 0.5, 1, 1.5, 2, 3] },
+        { notes: ['quarter', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 1, 1.5, 2, 3] },
+        { notes: ['eighth', 'eighth', 'quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 0.5, 1, 2, 2.5, 3] },
+      ];
+    }
+    
+    this.introIndex = 0;
+  }
+  
+  update(dt) {
+    this.time += dt;
+    
+    // Cube animation
+    this.cubeAnim.bounce = Math.sin(this.time * 3) * 5;
+    this.cubeAnim.blinkTimer -= dt;
+    if (this.cubeAnim.blinkTimer <= 0) {
+      this.cubeAnim.blink = true;
+      setTimeout(() => this.cubeAnim.blink = false, 150);
+      this.cubeAnim.blinkTimer = 3 + Math.random() * 2;
+    }
+    
+    // Talking animation during intro
+    this.cubeAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
+    
+    // Demo playback
+    if (this.demoPlaying) {
+      this.playbackTime += dt;
+      const pattern = this.patterns[this.currentPattern];
+      
+      // Play notes at the right time
+      while (this.demoIndex < pattern.beats.length) {
+        const noteTime = pattern.beats[this.demoIndex] * this.beatDuration;
+        if (this.playbackTime >= noteTime) {
+          Audio.playRhythmNote();
+          this.demoNotes.push({ beat: pattern.beats[this.demoIndex], time: 1 });
+          this.demoIndex++;
+        } else {
+          break;
+        }
+      }
+      
+      // End demo
+      if (this.playbackTime >= 4 * this.beatDuration + 0.5) {
+        this.demoPlaying = false;
+        this.phase = 'practice';
+        this.isPlaying = true;
+        this.playbackTime = -1; // Give a beat of preparation
+        this.playerTaps = [];
+        this.expectedTaps = [...pattern.beats];
+      }
+    }
+    
+    // Practice playback (metronome)
+    if (this.isPlaying && this.phase === 'practice') {
+      this.playbackTime += dt;
+      
+      // Metronome on each beat
+      const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
+      const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
+      
+      if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < 4) {
+        Audio.playMetronome(currentBeat === 0);
+      }
+      
+      // End of practice bar
+      if (this.playbackTime >= 4 * this.beatDuration + 0.3) {
+        this.evaluateAttempt();
+      }
+    }
+    
+    // Update demo note animations
+    for (let i = this.demoNotes.length - 1; i >= 0; i--) {
+      this.demoNotes[i].time -= dt * 2;
+      if (this.demoNotes[i].time <= 0) this.demoNotes.splice(i, 1);
+    }
+    
+    // Feedback timer
+    if (this.feedback) {
+      this.feedbackTimer -= dt;
+      if (this.feedbackTimer <= 0) this.feedback = null;
+    }
+  }
+  
+  evaluateAttempt() {
+    this.isPlaying = false;
+    this.attempts++;
+    
+    const pattern = this.patterns[this.currentPattern];
+    const expected = pattern.beats;
+    
+    // Check if taps match expected beats (with tolerance)
+    const tolerance = 0.25; // quarter beat tolerance
+    let hits = 0;
+    
+    for (const expBeat of expected) {
+      const hit = this.playerTaps.some(tap => Math.abs(tap - expBeat) < tolerance);
+      if (hit) hits++;
+    }
+    
+    const accuracy = hits / expected.length;
+    
+    if (accuracy >= 0.8) {
+      this.successes++;
+      this.score += Math.round(accuracy * 100);
+      this.feedback = { type: 'success', text: accuracy >= 1 ? 'Perfect! 🌟' : 'Great job! ✓' };
+      Audio.playSuccess();
+      spawnParticles(W/2, H/2, COLORS.success, 20);
+      
+      // Move to next pattern or complete
+      this.currentPattern++;
+      if (this.currentPattern >= this.patterns.length) {
+        this.phase = 'complete';
+      }
+    } else {
+      this.feedback = { type: 'retry', text: accuracy >= 0.5 ? 'Almost! Try again' : 'Listen again...' };
+      Audio.playFail();
+    }
+    
+    this.feedbackTimer = 2;
+  }
+  
+  render(ctx) {
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a1e');
+    grad.addColorStop(1, '#0a0a12');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    
+    // Lesson title
+    ctx.fillStyle = COLORS.cube;
+    ctx.font = 'bold 28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
+    
+    if (this.phase === 'intro') {
+      this.renderIntro(ctx);
+    } else if (this.phase === 'demo' || this.phase === 'practice') {
+      this.renderPractice(ctx);
+    } else if (this.phase === 'complete') {
+      this.renderComplete(ctx);
+    }
+    
+    // Back button (always visible)
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '20px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('← Exit', 30, H - 30);
+  }
+  
+  renderIntro(ctx) {
+    // Cube teacher
+    drawCube(ctx, W/2, 280, 1.2, this.cubeAnim);
+    
+    // Speech bubble
+    const bubbleY = 450;
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(60, bubbleY, W - 120, 150, 20);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.cube;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Bubble pointer
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 20, bubbleY);
+    ctx.lineTo(W/2, bubbleY - 20);
+    ctx.lineTo(W/2 + 20, bubbleY);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.cube;
+    ctx.beginPath();
+    ctx.moveTo(W/2 - 20, bubbleY);
+    ctx.lineTo(W/2, bubbleY - 20);
+    ctx.lineTo(W/2 + 20, bubbleY);
+    ctx.stroke();
+    
+    // Text
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.textAlign = 'center';
+    
+    const text = this.introText[this.introIndex];
+    ctx.fillText(text, W/2, bubbleY + 85);
+    
+    // Progress dots
+    for (let i = 0; i < this.introText.length; i++) {
+      ctx.fillStyle = i === this.introIndex ? COLORS.cube : COLORS.textMuted;
+      ctx.beginPath();
+      ctx.arc(W/2 - (this.introText.length - 1) * 12 + i * 24, bubbleY + 130, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Continue button
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, COLORS.cube, false);
+  }
+  
+  renderPractice(ctx) {
+    // Small Cube in corner
+    drawCube(ctx, 80, 130, 0.4, this.cubeAnim);
+    
+    // Pattern display
+    const pattern = this.patterns[this.currentPattern];
+    const staffY = 280;
+    
+    // Staff lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(60, staffY - 20 + i * 15);
+      ctx.lineTo(W - 60, staffY - 20 + i * 15);
+      ctx.stroke();
+    }
+    
+    // Time signature
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 40px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('4', 100, staffY - 8);
+    ctx.fillText('4', 100, staffY + 32);
+    
+    // Draw notes
+    const noteStartX = 180;
+    const noteSpacing = (W - 240) / 4;
+    
+    for (let i = 0; i < pattern.beats.length; i++) {
+      const beat = pattern.beats[i];
+      const x = noteStartX + beat * noteSpacing;
+      const noteType = pattern.notes[i];
+      
+      // Highlight if demo is showing this note
+      const demoNote = this.demoNotes.find(n => n.beat === beat);
+      if (demoNote) {
+        ctx.save();
+        ctx.shadowColor = COLORS.cube;
+        ctx.shadowBlur = 20 * demoNote.time;
+        Notation.drawNote(ctx, x, staffY, noteType);
+        ctx.restore();
+      } else {
+        Notation.drawNote(ctx, x, staffY, noteType);
+      }
+    }
+    
+    // Beat markers
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    for (let i = 0; i < 4; i++) {
+      const x = noteStartX + i * noteSpacing;
+      ctx.fillText((i + 1).toString(), x, staffY + 80);
+    }
+    
+    // Current beat indicator during practice
+    if (this.isPlaying && this.playbackTime >= 0) {
+      const currentPos = noteStartX + (this.playbackTime / this.beatDuration) * noteSpacing;
+      if (currentPos < W - 60) {
+        ctx.strokeStyle = COLORS.cube;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(currentPos, staffY - 50);
+        ctx.lineTo(currentPos, staffY + 50);
+        ctx.stroke();
+      }
+    }
+    
+    // Tap zone
+    const tapY = 550;
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(60, tapY, W - 120, 200, 20);
+    ctx.fill();
+    ctx.strokeStyle = this.isPlaying ? COLORS.cube : COLORS.cardBorder;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    ctx.fillStyle = this.isPlaying ? '#fff' : COLORS.textDim;
+    ctx.font = '28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(this.isPlaying ? 'TAP HERE!' : 'Listen...', W/2, tapY + 100);
+    
+    // Player taps visualization
+    for (const tap of this.playerTaps) {
+      const x = noteStartX + tap * noteSpacing;
+      ctx.fillStyle = COLORS.cube;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(x, tapY + 160, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    
+    // Feedback
+    if (this.feedback) {
+      ctx.save();
+      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
+      ctx.font = 'bold 36px Georgia';
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
+      ctx.fillText(this.feedback.text, W/2, 480);
+      ctx.restore();
+    }
+    
+    // Demo/Retry button
+    if (!this.isPlaying && !this.demoPlaying) {
+      const btnText = this.phase === 'demo' || this.feedback?.type === 'retry' ? '▶ Listen Again' : '▶ Play Demo';
+      drawButton(ctx, W/2 - 100, 820, 200, 50, btnText, COLORS.cube, false);
+    }
+    
+    // Progress
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Pattern ${this.currentPattern + 1}/${this.patterns.length}`, W - 30, 90);
+  }
+  
+  renderComplete(ctx) {
+    // Celebration!
+    drawCube(ctx, W/2, 300, 1.3, { 
+      bounce: Math.sin(this.time * 5) * 15,
+      glow: 0.5 
+    });
+    
+    ctx.fillStyle = COLORS.success;
+    ctx.font = 'bold 48px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Lesson Complete!', W/2, 500);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px Georgia';
+    ctx.fillText(`Score: ${this.score}`, W/2, 570);
+    ctx.fillText(`Accuracy: ${Math.round(this.successes / this.attempts * 100)}%`, W/2, 610);
+    
+    // Stars
+    const stars = this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1;
+    ctx.font = '60px Georgia';
+    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    
+    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', COLORS.cube, false);
+  }
+  
+  handleTap(x, y) {
+    // Exit button
+    if (x < 100 && y > H - 60) {
+      Audio.playClick();
+      Game.endLesson();
+      return;
+    }
+    
+    if (this.phase === 'intro') {
+      // Continue button
+      if (hitRect(x, y, W/2 - 100, 700, 200, 50)) {
+        Audio.playClick();
+        this.introIndex++;
+        if (this.introIndex >= this.introText.length) {
+          this.phase = 'demo';
+          this.startDemo();
+        }
+      }
+    }
+    else if (this.phase === 'demo' || (this.phase === 'practice' && !this.isPlaying && !this.demoPlaying)) {
+      // Play demo button
+      if (hitRect(x, y, W/2 - 100, 820, 200, 50)) {
+        Audio.playClick();
+        this.startDemo();
+      }
+    }
+    else if (this.phase === 'practice' && this.isPlaying) {
+      // Tap zone
+      if (hitRect(x, y, 60, 550, W - 120, 200)) {
+        const beat = this.playbackTime / this.beatDuration;
+        if (beat >= 0 && beat < 4) {
+          this.playerTaps.push(beat);
+          Audio.playRhythmNote();
+          spawnParticles(x, y, COLORS.cube, 5);
+        }
+      }
+    }
+    else if (this.phase === 'complete') {
+      // Continue button
+      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+        Audio.playClick();
+        Game.endLesson();
+      }
+    }
+  }
+  
+  startDemo() {
+    this.demoPlaying = true;
+    this.playbackTime = 0;
+    this.demoNotes = [];
+    this.demoIndex = 0;
+  }
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
 // ║  INPUT HANDLING                                                   ║
 // ╚══════════════════════════════════════════════════════════════════╝
-function getCanvasPos(e) {
+function getPos(e) {
   const rect = C.getBoundingClientRect();
   const x = (e.clientX - rect.left) * (W / rect.width);
   const y = (e.clientY - rect.top) * (H / rect.height);
   return { x, y };
 }
 
-function handleInput(x, y) {
-  Audio.resume();
-  
-  if (Game.screen === 'title') {
-    Game.startGame();
-    return;
-  }
-  
-  if (Game.screen === 'results') {
-    Game.startGame();
-    return;
-  }
-  
-  if (Game.screen === 'playing') {
-    // Determine which lane was tapped
-    const laneWidth = 180;
-    const startX = (W - laneWidth * 3) / 2;
-    
-    for (let i = 0; i < 3; i++) {
-      const laneX = startX + i * laneWidth;
-      if (x >= laneX && x < laneX + laneWidth) {
-        Game.hitLane(i);
-        break;
-      }
-    }
-  }
-}
-
 C.addEventListener('mousedown', e => {
-  const pos = getCanvasPos(e);
-  handleInput(pos.x, pos.y);
+  const { x, y } = getPos(e);
+  Game.handleTap(x, y);
+});
+
+C.addEventListener('mousemove', e => {
+  const { x, y } = getPos(e);
+  Game.handleMove(x, y);
 });
 
 C.addEventListener('touchstart', e => {
   e.preventDefault();
-  for (const touch of e.changedTouches) {
-    const pos = getCanvasPos(touch);
-    handleInput(pos.x, pos.y);
-  }
+  const touch = e.touches[0];
+  const { x, y } = getPos(touch);
+  Game.handleTap(x, y);
 }, { passive: false });
-
-// Keyboard support
-document.addEventListener('keydown', e => {
-  if (Game.screen !== 'playing') {
-    if (e.code === 'Space' || e.code === 'Enter') {
-      Audio.resume();
-      if (Game.screen === 'title') Game.startGame();
-      else if (Game.screen === 'results') Game.startGame();
-    }
-    return;
-  }
-  
-  Audio.resume();
-  if (e.code === 'KeyA' || e.code === 'KeyZ' || e.code === 'Digit1') Game.hitLane(0);
-  if (e.code === 'KeyS' || e.code === 'KeyX' || e.code === 'Digit2' || e.code === 'Space') Game.hitLane(1);
-  if (e.code === 'KeyD' || e.code === 'KeyC' || e.code === 'Digit3') Game.hitLane(2);
-});
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  GAME LOOP                                                        ║
 // ╚══════════════════════════════════════════════════════════════════╝
 let lastTime = 0;
 
-function gameLoop(timestamp) {
-  const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
-  lastTime = timestamp;
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.1);
+  lastTime = ts;
   
   Game.update(dt);
   Game.render(CTX);
   
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
-Game.init();
-requestAnimationFrame(gameLoop);
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
