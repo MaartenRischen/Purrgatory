@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Purrgatory</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    color: #eee;
+    font-family: 'Georgia', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 3rem;
+    color: #e94560;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(233,69,96,0.5);
+  }
+  .characters {
+    display: flex;
+    gap: 2rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .character {
+    background: #16213e;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    width: 140px;
+    border: 2px solid #0f3460;
+    transition: transform 0.3s;
+  }
+  .character:active { transform: scale(0.95); }
+  .character .icon { font-size: 3rem; margin-bottom: 0.5rem; }
+  .character .name { font-size: 1.1rem; color: #e94560; font-weight: bold; }
+  .character .desc { font-size: 0.75rem; color: #999; margin-top: 0.3rem; }
+  .status {
+    margin-top: 2rem;
+    padding: 1rem 2rem;
+    background: #0f3460;
+    border-radius: 0.5rem;
+    color: #53d769;
+    font-size: 1.2rem;
+  }
+</style>
+</head>
+<body>
+  <h1>🐾 Purrgatory 🐾</h1>
+  <p>The game is loading...</p>
+  <div class="characters">
+    <div class="character">
+      <div class="icon">🐱</div>
+      <div class="name">Cube</div>
+      <div class="desc">White Siamese kitten with a square tail</div>
+    </div>
+    <div class="character">
+      <div class="icon">🐕</div>
+      <div class="name">Willow</div>
+      <div class="desc">Black Shiba Inu</div>
+    </div>
+    <div class="character">
+      <div class="icon">🐕‍🦺</div>
+      <div class="name">Dropje</div>
+      <div class="desc">Black Labrador</div>
+    </div>
+  </div>
+  <div class="status">✅ Purrgatory is live! Game coming soon.</div>
+</body>
+</html>
