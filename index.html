@@ -18,7 +18,7 @@ canvas { display: block; touch-action: none; }
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  PURRGATORY - MUSIC ACADEMY                                       ║
-// ║  Three teachers. Three disciplines. One musical journey.         ║
+// ║  Proper music pedagogy inspired by Kodály & Orff methods         ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
 const C = document.getElementById('game');
@@ -68,7 +68,6 @@ const Audio = {
   },
   
   playClick() { this.playTick(1000, 0.05); },
-  playBeat() { this.playTick(600, 0.1); },
   playSuccess() {
     this.playTick(523, 0.15);
     setTimeout(() => this.playTick(659, 0.15), 100);
@@ -94,16 +93,9 @@ const Audio = {
     osc.stop(this.ctx.currentTime + 0.15);
   },
   
-  // Note frequencies for melody/harmony
-  noteFreq: {
-    'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
-    'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77
-  },
-  
-  playNote(note, dur = 0.3, type = 'triangle') {
+  // Frequency ratios for intervals (relative pitch - not absolute!)
+  playNote(freq, dur = 0.3, type = 'triangle') {
     if (!this.ctx) return;
-    const freq = this.noteFreq[note] || 440;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = type;
@@ -116,12 +108,28 @@ const Audio = {
     osc.stop(this.ctx.currentTime + dur);
   },
   
-  playChord(notes, dur = 0.5) {
-    notes.forEach(note => this.playNote(note, dur, 'sine'));
+  // Play a chord with relative intervals from a root
+  // Major chord: root, major 3rd (5:4), perfect 5th (3:2)
+  // Minor chord: root, minor 3rd (6:5), perfect 5th (3:2)
+  playChord(root, type = 'major', dur = 0.6) {
+    const third = type === 'major' ? root * 1.25 : root * 1.2; // Major vs minor 3rd
+    const fifth = root * 1.5;
+    this.playNote(root, dur, 'sine');
+    this.playNote(third, dur, 'sine');
+    this.playNote(fifth, dur, 'sine');
   },
   
-  playMelodyNote(note) {
-    this.playNote(note, 0.25, 'triangle');
+  // Play two notes for interval comparison
+  playInterval(root, ratio, delay = 0.4) {
+    this.playNote(root, 0.4, 'triangle');
+    setTimeout(() => this.playNote(root * ratio, 0.4, 'triangle'), delay * 1000);
+  },
+  
+  // Play a melody pattern (array of frequency ratios from root)
+  playMelody(root, ratios, noteTime = 0.35) {
+    ratios.forEach((ratio, i) => {
+      setTimeout(() => this.playNote(root * ratio, noteTime, 'triangle'), i * (noteTime * 1000 + 50));
+    });
   }
 };
 
@@ -130,11 +138,18 @@ const Audio = {
 // ╚══════════════════════════════════════════════════════════════════╝
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const easeOut = t => 1 - Math.pow(1 - t, 3);
-const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
 
 function hitRect(px, py, rx, ry, rw, rh) {
   return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -168,9 +183,7 @@ function spawnParticles(x, y, color, count = 10) {
       x, y,
       vx: Math.cos(angle) * (100 + Math.random() * 100),
       vy: Math.sin(angle) * (100 + Math.random() * 100),
-      life: 1,
-      color,
-      size: 3 + Math.random() * 4,
+      life: 1, color, size: 3 + Math.random() * 4,
     });
   }
 }
@@ -473,19 +486,11 @@ function drawDropje(ctx, x, y, scale, options = {}) {
   ctx.ellipse(0, -15, 10, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  if (talk) {
-    ctx.fillStyle = '#E88090';
-    ctx.beginPath();
-    ctx.moveTo(-8, -5);
-    ctx.quadraticCurveTo(0, 20, 8, -5);
-    ctx.fill();
-  } else {
-    ctx.fillStyle = '#E88090';
-    ctx.beginPath();
-    ctx.moveTo(-6, -5);
-    ctx.quadraticCurveTo(0, 15, 6, -5);
-    ctx.fill();
-  }
+  ctx.fillStyle = '#E88090';
+  ctx.beginPath();
+  ctx.moveTo(-6, -5);
+  ctx.quadraticCurveTo(0, talk ? 20 : 15, 6, -5);
+  ctx.fill();
   
   ctx.fillStyle = black;
   ctx.beginPath();
@@ -535,7 +540,6 @@ function drawBert(ctx, x, y, scale, options = {}) {
   ctx.ellipse(0, -25, 22, 26, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  ctx.fillStyle = face;
   ctx.beginPath();
   ctx.ellipse(-32, -30, 12, 8, -0.5, 0, Math.PI * 2);
   ctx.fill();
@@ -637,90 +641,45 @@ function drawCard(ctx, x, y, w, h, color) {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  MUSIC NOTATION DRAWING                                           ║
+// ║  MUSIC NOTATION                                                   ║
 // ╚══════════════════════════════════════════════════════════════════╝
 const Notation = {
-  drawWhole(ctx, x, y, size = 20) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
-    ctx.stroke();
-  },
-  
-  drawHalf(ctx, x, y, size = 16, stemUp = true) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    ctx.fillStyle = '#fff';
-    const stemX = stemUp ? x + size - 2 : x - size + 2;
-    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
-    ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
-  },
-  
-  drawQuarter(ctx, x, y, size = 14, stemUp = true) {
+  drawQuarter(ctx, x, y, size = 14) {
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
     ctx.fill();
-    
-    const stemX = stemUp ? x + size - 2 : x - size + 2;
-    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
+    const stemX = x + size - 2;
+    const stemY = y - size * 2.5;
+    ctx.fillRect(stemX, stemY, 3, Math.abs(stemY - y));
+  },
+  
+  drawHalf(ctx, x, y, size = 16) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size * 0.7, -0.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    const stemX = x + size - 2;
+    const stemY = y - size * 2.5;
     ctx.fillRect(stemX, Math.min(y, stemY), 3, Math.abs(stemY - y));
   },
   
-  drawEighth(ctx, x, y, size = 14, stemUp = true) {
-    this.drawQuarter(ctx, x, y, size, stemUp);
-    
+  drawEighth(ctx, x, y, size = 14) {
+    this.drawQuarter(ctx, x, y, size);
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 3;
-    const stemX = stemUp ? x + size : x - size + 2;
-    const stemY = stemUp ? y - size * 2.5 : y + size * 2.5;
-    
+    const stemX = x + size;
+    const stemY = y - size * 2.5;
     ctx.beginPath();
-    if (stemUp) {
-      ctx.moveTo(stemX, stemY);
-      ctx.quadraticCurveTo(stemX + 15, stemY + 15, stemX + 5, stemY + 30);
-    } else {
-      ctx.moveTo(stemX, stemY);
-      ctx.quadraticCurveTo(stemX - 15, stemY - 15, stemX - 5, stemY - 30);
-    }
+    ctx.moveTo(stemX, stemY);
+    ctx.quadraticCurveTo(stemX + 15, stemY + 15, stemX + 5, stemY + 30);
     ctx.stroke();
-  },
-  
-  drawRest(ctx, x, y, type, size = 20) {
-    ctx.fillStyle = '#fff';
-    ctx.font = `${size * 2}px Georgia`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    if (type === 'whole') {
-      ctx.fillRect(x - size, y - 5, size * 2, 8);
-    } else if (type === 'half') {
-      ctx.fillRect(x - size, y, size * 2, 8);
-    } else if (type === 'quarter') {
-      ctx.beginPath();
-      ctx.moveTo(x - 5, y - 15);
-      ctx.lineTo(x + 5, y - 5);
-      ctx.lineTo(x - 5, y + 5);
-      ctx.lineTo(x + 5, y + 15);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
-    } else if (type === 'eighth') {
-      ctx.beginPath();
-      ctx.arc(x, y - 8, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(x, y - 8, 3, 20);
-    }
   },
   
   drawNote(ctx, x, y, type, size = 14) {
     switch(type) {
-      case 'whole': this.drawWhole(ctx, x, y, size + 6); break;
       case 'half': this.drawHalf(ctx, x, y, size + 2); break;
       case 'quarter': this.drawQuarter(ctx, x, y, size); break;
       case 'eighth': this.drawEighth(ctx, x, y, size); break;
@@ -741,7 +700,6 @@ const Game = {
   update(dt) {
     this.time += dt;
     updateParticles(dt);
-    
     if (this.screen === 'lesson' && this.lesson) {
       this.lesson.update(dt);
     }
@@ -792,7 +750,6 @@ const Game = {
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '28px Georgia';
-    ctx.textAlign = 'center';
     ctx.fillText('Music Academy', W/2, 260);
     
     drawCube(ctx, W/2 - 180, 500, 0.7, { bounce: Math.sin(t * 2) * 8 });
@@ -807,9 +764,7 @@ const Game = {
     ctx.fillStyle = COLORS.dropje;
     ctx.fillText('Melody', W/2 + 180, 600);
     
-    const btnY = 750;
-    const hover = this.teacherHover === 99;
-    drawButton(ctx, W/2 - 120, btnY, 240, 60, 'START LEARNING', COLORS.cube, hover);
+    drawButton(ctx, W/2 - 120, 750, 240, 60, 'START LEARNING', COLORS.cube, this.teacherHover === 99);
     
     ctx.fillStyle = COLORS.textMuted;
     ctx.font = '18px Georgia';
@@ -831,9 +786,9 @@ const Game = {
     ctx.fillText('Choose Your Teacher', W/2, 80);
     
     const teachers = [
-      { id: 'cube', name: 'Cube', title: 'Rhythm Sensei', desc: 'Learn to read and feel the beat. Master note values, time signatures, and rhythmic patterns.', color: COLORS.cube, draw: drawCube },
-      { id: 'willow', name: 'Willow', title: 'Harmony Master', desc: 'Discover the art of chords and scales. Build harmonic progressions and train your ear.', color: COLORS.willow, draw: drawWillow },
-      { id: 'dropje', name: 'Dropje', title: 'Melody Maker', desc: 'Explore melodic patterns and composition. Play by ear and create your own tunes.', color: COLORS.dropje, draw: drawDropje },
+      { id: 'cube', name: 'Cube', title: 'Rhythm Sensei', desc: 'Feel the beat! Learn to tap along, recognize patterns, and master timing through body movement.', color: COLORS.cube, draw: drawCube },
+      { id: 'willow', name: 'Willow', title: 'Harmony Guide', desc: 'Train your ears! Learn to hear happy vs sad chords, tension vs resolution, and musical colors.', color: COLORS.willow, draw: drawWillow },
+      { id: 'dropje', name: 'Dropje', title: 'Melody Maker', desc: 'Follow the tune! Learn high vs low, melodic shapes, and create your own musical phrases.', color: COLORS.dropje, draw: drawDropje },
     ];
     
     teachers.forEach((teacher, i) => {
@@ -901,9 +856,9 @@ const Game = {
     ctx.fillRect(0, 0, W, H);
     
     const teacherData = {
-      cube: { draw: drawCube, color: COLORS.cube, name: "Cube's Rhythm Class", sub: 'Master the art of rhythm notation' },
-      willow: { draw: drawWillow, color: COLORS.willow, name: "Willow's Harmony Class", sub: 'Build chords and train your ear' },
-      dropje: { draw: drawDropje, color: COLORS.dropje, name: "Dropje's Melody Class", sub: 'Play by ear and create tunes' }
+      cube: { draw: drawCube, color: COLORS.cube, name: "Cube's Rhythm Class", sub: 'Feel and move to the beat' },
+      willow: { draw: drawWillow, color: COLORS.willow, name: "Willow's Harmony Class", sub: 'Train your ears to hear color' },
+      dropje: { draw: drawDropje, color: COLORS.dropje, name: "Dropje's Melody Class", sub: 'Follow and create tunes' }
     };
     
     const td = teacherData[this.selectedTeacher];
@@ -922,11 +877,9 @@ const Game = {
     
     lessons.forEach((lesson, i) => {
       const y = 200 + i * 110;
-      const hover = this.teacherHover === i && lesson.unlocked;
+      const hover = this.teacherHover === i;
       
       ctx.save();
-      if (!lesson.unlocked) ctx.globalAlpha = 0.4;
-      
       if (hover) {
         ctx.shadowColor = td.color;
         ctx.shadowBlur = 15;
@@ -946,7 +899,7 @@ const Game = {
       ctx.textAlign = 'center';
       ctx.fillText(lesson.id.toString(), 100, y + 52);
       
-      ctx.fillStyle = lesson.unlocked ? '#fff' : COLORS.textMuted;
+      ctx.fillStyle = '#fff';
       ctx.font = 'bold 24px Georgia';
       ctx.textAlign = 'left';
       ctx.fillText(lesson.name, 150, y + 40);
@@ -954,14 +907,6 @@ const Game = {
       ctx.fillStyle = COLORS.textDim;
       ctx.font = '18px Georgia';
       ctx.fillText(lesson.desc, 150, y + 68);
-      
-      if (!lesson.unlocked) {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = COLORS.textMuted;
-        ctx.font = '24px Georgia';
-        ctx.textAlign = 'right';
-        ctx.fillText('🔒', W - 60, y + 52);
-      }
       
       ctx.restore();
     });
@@ -975,30 +920,30 @@ const Game = {
   getLessons() {
     if (this.selectedTeacher === 'cube') {
       return [
-        { id: 1, name: 'Quarter Notes', desc: 'The heartbeat of music', unlocked: true },
-        { id: 2, name: 'Half & Whole Notes', desc: 'Learning to hold the beat', unlocked: true },
-        { id: 3, name: 'Eighth Notes', desc: 'Double time excitement', unlocked: true },
-        { id: 4, name: 'Rests', desc: 'The power of silence', unlocked: true },
-        { id: 5, name: 'Mixed Rhythms', desc: 'Putting it all together', unlocked: true },
-        { id: 6, name: 'Time Signatures', desc: '4/4, 3/4, and beyond', unlocked: true },
+        { id: 1, name: 'Find the Beat', desc: 'Tap along to the steady pulse' },
+        { id: 2, name: 'Long & Short', desc: 'Quarter notes and half notes' },
+        { id: 3, name: 'Double Time', desc: 'Adding eighth notes' },
+        { id: 4, name: 'Rest & Breathe', desc: 'The power of silence' },
+        { id: 5, name: 'Mix It Up', desc: 'Combined rhythms' },
+        { id: 6, name: 'Waltz Time', desc: '3/4 feels different!' },
       ];
     } else if (this.selectedTeacher === 'willow') {
       return [
-        { id: 1, name: 'Major Chords', desc: 'Happy, bright sounds', unlocked: true },
-        { id: 2, name: 'Minor Chords', desc: 'Sad, moody vibes', unlocked: true },
-        { id: 3, name: 'Chord Recognition', desc: 'Major vs Minor ear training', unlocked: true },
-        { id: 4, name: 'The I-IV-V', desc: 'Most common progression', unlocked: true },
-        { id: 5, name: 'Seventh Chords', desc: 'Adding color and tension', unlocked: true },
-        { id: 6, name: 'Chord Progressions', desc: 'Building full sequences', unlocked: true },
+        { id: 1, name: 'One or Many?', desc: 'Single notes vs chords' },
+        { id: 2, name: 'Happy or Sad?', desc: 'Major vs minor feeling' },
+        { id: 3, name: 'Same or Different?', desc: 'Chord comparison' },
+        { id: 4, name: 'Tension & Rest', desc: 'When music wants to resolve' },
+        { id: 5, name: 'Chord Changes', desc: 'Hearing movement' },
+        { id: 6, name: 'The Full Picture', desc: 'Progressions as stories' },
       ];
     } else {
       return [
-        { id: 1, name: 'Scale Steps', desc: 'Up and down the ladder', unlocked: true },
-        { id: 2, name: 'Intervals', desc: 'The distance between notes', unlocked: true },
-        { id: 3, name: 'Echo Melodies', desc: 'Repeat what you hear', unlocked: true },
-        { id: 4, name: 'Pattern Recognition', desc: 'Spot the melody', unlocked: true },
-        { id: 5, name: 'Melodic Dictation', desc: 'Write what you hear', unlocked: true },
-        { id: 6, name: 'Free Composition', desc: 'Create your own tune', unlocked: true },
+        { id: 1, name: 'High or Low?', desc: 'Which note is higher?' },
+        { id: 2, name: 'Up, Down, Same', desc: 'Melodic direction' },
+        { id: 3, name: 'Step or Jump?', desc: 'Small moves vs big leaps' },
+        { id: 4, name: 'Echo Back', desc: 'Repeat simple patterns' },
+        { id: 5, name: 'Longer Echoes', desc: 'More complex patterns' },
+        { id: 6, name: 'Make Your Own', desc: 'Free composition!' },
       ];
     }
   },
@@ -1042,7 +987,6 @@ const Game = {
       
       const lessons = this.getLessons();
       for (let i = 0; i < lessons.length; i++) {
-        if (!lessons[i].unlocked) continue;
         const ly = 200 + i * 110;
         if (hitRect(x, y, 40, ly, W - 80, 90)) {
           Audio.playClick();
@@ -1119,7 +1063,6 @@ class RhythmLesson {
     
     this.currentPattern = 0;
     this.playerTaps = [];
-    this.expectedTaps = [];
     this.isPlaying = false;
     this.playbackTime = 0;
     this.bpm = 80;
@@ -1140,70 +1083,65 @@ class RhythmLesson {
     this.countInBeat = 0;
     
     this.bert = {
-      active: false,
-      x: -100,
-      targetX: -100,
-      y: 400,
-      timer: 0.5 + Math.random() * 1,
-      wiggle: 0,
-      side: 'left'
+      active: false, x: -100, targetX: -100, y: 400,
+      timer: 0.5 + Math.random() * 1, wiggle: 0, side: 'left'
     };
   }
   
   setupLesson() {
     const lessonData = {
       1: {
-        title: 'Quarter Notes',
-        introText: ["Welcome! I'm Cube, your rhythm teacher.", "Let's start with quarter notes.", "A quarter note (♩) gets ONE beat.", "In 4/4 time, we count: 1, 2, 3, 4", "Tap along with the beat!"],
+        title: 'Find the Beat',
+        introText: ["Welcome! I'm Cube.", "Music has a PULSE - a steady beat.", "Like a heartbeat: ba-dum, ba-dum", "Your job: TAP along with it!", "Just feel and follow."],
         patterns: [
-          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
-          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
-          { notes: ['quarter', 'quarter', 'quarter', 'quarter'], beats: [0, 1, 2, 3] },
+          { beats: [0, 1, 2, 3] },
+          { beats: [0, 1, 2, 3] },
+          { beats: [0, 1, 2, 3] },
         ]
       },
       2: {
-        title: 'Half & Whole Notes',
-        introText: ["Great progress! Now let's slow down.", "A half note gets TWO beats.", "A whole note gets FOUR beats.", "Hold the note for its full value!", "Listen, then tap the rhythm."],
+        title: 'Long & Short',
+        introText: ["Great rhythm sense!", "Notes have different LENGTHS.", "Short notes: ♩ (1 beat)", "Long notes: 𝅗𝅥 (2 beats)", "Tap when you hear sounds!"],
         patterns: [
-          { notes: ['half', 'half'], beats: [0, 2] },
-          { notes: ['whole'], beats: [0] },
-          { notes: ['half', 'quarter', 'quarter'], beats: [0, 2, 3] },
+          { beats: [0, 1, 2, 3], notes: ['quarter', 'quarter', 'quarter', 'quarter'] },
+          { beats: [0, 2], notes: ['half', 'half'] },
+          { beats: [0, 2, 3], notes: ['half', 'quarter', 'quarter'] },
         ]
       },
       3: {
-        title: 'Eighth Notes',
-        introText: ["Time to speed up!", "An eighth note gets HALF a beat.", "Two eighths = one quarter note.", "We count: 1 & 2 & 3 & 4 &", "Feel the groove!"],
+        title: 'Double Time',
+        introText: ["Ready to speed up?", "Eighth notes are TWICE as fast!", "Two eighths = one quarter", "Count: 1 & 2 & 3 & 4 &", "Feel the groove!"],
         patterns: [
-          { notes: ['eighth', 'eighth', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 0.5, 1, 1.5, 2, 3] },
-          { notes: ['quarter', 'eighth', 'eighth', 'quarter', 'quarter'], beats: [0, 1, 1.5, 2, 3] },
-          { notes: ['eighth', 'eighth', 'quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 0.5, 1, 2, 2.5, 3] },
+          { beats: [0, 0.5, 1, 1.5, 2, 3] },
+          { beats: [0, 1, 1.5, 2, 3] },
+          { beats: [0, 0.5, 1, 2, 2.5, 3] },
         ]
       },
       4: {
-        title: 'Rests',
-        introText: ["Music needs silence too!", "A rest means DON'T play.", "Quarter rest = 1 beat of silence.", "Listen for the gaps!", "Tap only on the notes, not rests."],
+        title: 'Rest & Breathe',
+        introText: ["Silence is music too!", "A REST means DON'T tap.", "Listen for the gaps!", "Music breathes with silence.", "Tap notes, skip rests."],
         patterns: [
-          { notes: ['quarter', 'rest', 'quarter', 'quarter'], beats: [0, 2, 3] },
-          { notes: ['quarter', 'quarter', 'rest', 'quarter'], beats: [0, 1, 3] },
-          { notes: ['rest', 'quarter', 'quarter', 'rest'], beats: [1, 2] },
+          { beats: [0, 2, 3] }, // rest on 1
+          { beats: [0, 1, 3] }, // rest on 2
+          { beats: [1, 2] }, // rests on 0 and 3
         ]
       },
       5: {
-        title: 'Mixed Rhythms',
-        introText: ["Let's mix it all together!", "Different note values in one bar.", "Stay focused on the beat!", "Count carefully.", "You've got this!"],
+        title: 'Mix It Up',
+        introText: ["Let's combine everything!", "Long, short, and silence.", "Really listen carefully.", "Feel the rhythm in your body.", "You've got this!"],
         patterns: [
-          { notes: ['half', 'eighth', 'eighth', 'quarter'], beats: [0, 2, 2.5, 3] },
-          { notes: ['quarter', 'eighth', 'eighth', 'half'], beats: [0, 1, 1.5, 2] },
-          { notes: ['eighth', 'eighth', 'quarter', 'half'], beats: [0, 0.5, 1, 2] },
+          { beats: [0, 2, 2.5, 3] },
+          { beats: [0, 0.5, 1, 2] },
+          { beats: [0.5, 1, 2, 3.5] },
         ]
       },
       6: {
-        title: 'Time Signatures',
-        introText: ["Not all music has 4 beats!", "3/4 time has THREE beats per bar.", "Think of a waltz: 1-2-3, 1-2-3", "The feel is totally different!", "Let's try it!"],
+        title: 'Waltz Time',
+        introText: ["Not all music has 4 beats!", "3/4 time has THREE beats.", "Think: 1-2-3, 1-2-3", "Like a dance! 💃", "Feel the sway!"],
         patterns: [
-          { notes: ['quarter', 'quarter', 'quarter'], beats: [0, 1, 2], timeSig: '3/4' },
-          { notes: ['half', 'quarter'], beats: [0, 2], timeSig: '3/4' },
-          { notes: ['quarter', 'eighth', 'eighth', 'quarter'], beats: [0, 1, 1.5, 2], timeSig: '3/4' },
+          { beats: [0, 1, 2], timeSig: 3 },
+          { beats: [0, 2], timeSig: 3 },
+          { beats: [0, 1, 1.5, 2], timeSig: 3 },
         ]
       }
     };
@@ -1213,12 +1151,6 @@ class RhythmLesson {
     this.introText = data.introText;
     this.patterns = data.patterns;
     this.introIndex = 0;
-  }
-  
-  startCountIn() {
-    this.countingIn = true;
-    this.countInBeat = 0;
-    this.playbackTime = -0.01;
   }
   
   update(dt) {
@@ -1231,12 +1163,12 @@ class RhythmLesson {
       setTimeout(() => this.teacherAnim.blink = false, 150);
       this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
     }
-    
     this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
     
     if (this.demoPlaying) {
       this.playbackTime += dt;
       const pattern = this.patterns[this.currentPattern];
+      const totalBeats = pattern.timeSig || 4;
       
       while (this.demoIndex < pattern.beats.length) {
         const noteTime = pattern.beats[this.demoIndex] * this.beatDuration;
@@ -1244,13 +1176,10 @@ class RhythmLesson {
           Audio.playRhythmNote();
           this.demoNotes.push({ beat: pattern.beats[this.demoIndex], time: 1 });
           this.demoIndex++;
-        } else {
-          break;
-        }
+        } else break;
       }
       
-      const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
-      if (this.playbackTime >= totalBeats * this.beatDuration + 0.5) {
+      if (this.playbackTime >= totalBeats * this.beatDuration + 0.3) {
         this.demoPlaying = false;
         this.startCountIn();
       }
@@ -1258,10 +1187,9 @@ class RhythmLesson {
     
     if (this.countingIn) {
       this.playbackTime += dt;
-      
+      const totalBeats = this.patterns[this.currentPattern].timeSig || 4;
       const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
       const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
-      const totalBeats = this.patterns[this.currentPattern].timeSig === '3/4' ? 3 : 4;
       
       if (currentBeat !== prevBeat && currentBeat >= 0 && currentBeat < totalBeats) {
         Audio.playMetronome(currentBeat === 0);
@@ -1274,15 +1202,13 @@ class RhythmLesson {
         this.isPlaying = true;
         this.playbackTime = 0;
         this.playerTaps = [];
-        this.expectedTaps = [...this.patterns[this.currentPattern].beats];
       }
     }
     
     if (this.isPlaying && this.phase === 'practice') {
       this.playbackTime += dt;
-      
       const pattern = this.patterns[this.currentPattern];
-      const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
+      const totalBeats = pattern.timeSig || 4;
       const currentBeat = Math.floor(this.playbackTime / this.beatDuration);
       const prevBeat = Math.floor((this.playbackTime - dt) / this.beatDuration);
       
@@ -1305,7 +1231,6 @@ class RhythmLesson {
       if (this.feedbackTimer <= 0) {
         const wasSuccess = this.feedback.type === 'success';
         this.feedback = null;
-        
         if (wasSuccess && this.phase !== 'complete') {
           this.startDemo();
         }
@@ -1315,13 +1240,18 @@ class RhythmLesson {
     this.updateBert(dt);
   }
   
+  startCountIn() {
+    this.countingIn = true;
+    this.countInBeat = 0;
+    this.playbackTime = -0.01;
+  }
+  
   updateBert(dt) {
     const bert = this.bert;
     bert.wiggle += dt * 8;
     
     if (this.phase === 'practice' && this.isPlaying) {
       bert.timer -= dt;
-      
       if (!bert.active && bert.timer <= 0) {
         bert.active = true;
         bert.side = Math.random() > 0.5 ? 'right' : 'left';
@@ -1329,15 +1259,11 @@ class RhythmLesson {
         bert.targetX = bert.side === 'left' ? 80 : W - 80;
         bert.y = 350 + Math.random() * 200;
       }
-      
       if (bert.active) {
         bert.x = lerp(bert.x, bert.targetX, dt * 5);
-        
-        const atTarget = Math.abs(bert.x - bert.targetX) < 5;
-        if (atTarget && bert.timer < -1.5) {
+        if (Math.abs(bert.x - bert.targetX) < 5 && bert.timer < -1.5) {
           bert.targetX = bert.side === 'left' ? -100 : W + 100;
         }
-        
         if ((bert.side === 'left' && bert.x < -70) || (bert.side === 'right' && bert.x > W + 70)) {
           bert.active = false;
           bert.timer = 1 + Math.random() * 2;
@@ -1356,32 +1282,29 @@ class RhythmLesson {
     
     const pattern = this.patterns[this.currentPattern];
     const expected = pattern.beats;
-    const tolerance = 0.25;
+    const tolerance = 0.3;
     let hits = 0;
     
     for (const expBeat of expected) {
-      const hit = this.playerTaps.some(tap => Math.abs(tap - expBeat) < tolerance);
-      if (hit) hits++;
+      if (this.playerTaps.some(tap => Math.abs(tap - expBeat) < tolerance)) hits++;
     }
     
     const accuracy = hits / expected.length;
     
-    if (accuracy >= 0.8) {
+    if (accuracy >= 0.7) {
       this.successes++;
       this.score += Math.round(accuracy * 100);
-      this.feedback = { type: 'success', text: accuracy >= 1 ? 'Perfect! 🌟' : 'Great job! ✓' };
+      this.feedback = { type: 'success', text: accuracy >= 0.9 ? 'Perfect! 🌟' : 'Great! ✓' };
       Audio.playSuccess();
       spawnParticles(W/2, H/2, COLORS.success, 20);
-      
       this.currentPattern++;
       if (this.currentPattern >= this.patterns.length) {
         this.phase = 'complete';
       }
     } else {
-      this.feedback = { type: 'retry', text: accuracy >= 0.5 ? 'Almost! Try again' : 'Listen again...' };
+      this.feedback = { type: 'retry', text: 'Try again! Listen closely.' };
       Audio.playFail();
     }
-    
     this.feedbackTimer = 2;
   }
   
@@ -1397,13 +1320,9 @@ class RhythmLesson {
     ctx.textAlign = 'center';
     ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
     
-    if (this.phase === 'intro') {
-      this.renderIntro(ctx);
-    } else if (this.phase === 'demo' || this.phase === 'practice') {
-      this.renderPractice(ctx);
-    } else if (this.phase === 'complete') {
-      this.renderComplete(ctx);
-    }
+    if (this.phase === 'intro') this.renderIntro(ctx);
+    else if (this.phase === 'demo' || this.phase === 'practice') this.renderPractice(ctx);
+    else if (this.phase === 'complete') this.renderComplete(ctx);
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
@@ -1429,12 +1348,6 @@ class RhythmLesson {
     ctx.lineTo(W/2, bubbleY - 20);
     ctx.lineTo(W/2 + 20, bubbleY);
     ctx.fill();
-    ctx.strokeStyle = this.color;
-    ctx.beginPath();
-    ctx.moveTo(W/2 - 20, bubbleY);
-    ctx.lineTo(W/2, bubbleY - 20);
-    ctx.lineTo(W/2 + 20, bubbleY);
-    ctx.stroke();
     
     ctx.fillStyle = '#fff';
     ctx.font = '24px Georgia';
@@ -1448,7 +1361,7 @@ class RhythmLesson {
       ctx.fill();
     }
     
-    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start!';
     drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
   }
   
@@ -1456,135 +1369,110 @@ class RhythmLesson {
     this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
     
     const pattern = this.patterns[this.currentPattern];
-    const staffY = 280;
-    const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
+    const totalBeats = pattern.timeSig || 4;
     
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-      ctx.beginPath();
-      ctx.moveTo(60, staffY - 20 + i * 15);
-      ctx.lineTo(W - 60, staffY - 20 + i * 15);
-      ctx.stroke();
-    }
+    // Visual beat indicators
+    const beatY = 280;
+    const beatSpacing = (W - 120) / totalBeats;
+    const startX = 60 + beatSpacing / 2;
     
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 40px Georgia';
-    ctx.textAlign = 'center';
-    const timeSig = pattern.timeSig || '4/4';
-    ctx.fillText(timeSig[0], 100, staffY - 8);
-    ctx.fillText(timeSig[2], 100, staffY + 32);
-    
-    const noteStartX = 180;
-    const noteSpacing = (W - 240) / totalBeats;
-    
-    for (let i = 0; i < pattern.beats.length; i++) {
-      const beat = pattern.beats[i];
-      const x = noteStartX + beat * noteSpacing;
-      const noteType = pattern.notes[i];
-      
-      if (noteType === 'rest') continue;
-      
-      const demoNote = this.demoNotes.find(n => n.beat === beat);
-      if (demoNote) {
-        ctx.save();
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 20 * demoNote.time;
-        Notation.drawNote(ctx, x, staffY, noteType);
-        ctx.restore();
-      } else {
-        Notation.drawNote(ctx, x, staffY, noteType);
-      }
-    }
-    
-    ctx.fillStyle = COLORS.textDim;
-    ctx.font = '18px Georgia';
     for (let i = 0; i < totalBeats; i++) {
-      const x = noteStartX + i * noteSpacing;
-      ctx.fillText((i + 1).toString(), x, staffY + 80);
+      const x = startX + i * beatSpacing;
+      const isTarget = pattern.beats.some(b => Math.floor(b) === i);
+      
+      ctx.fillStyle = isTarget ? this.color : COLORS.cardBorder;
+      ctx.beginPath();
+      ctx.arc(x, beatY, 30, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText((i + 1).toString(), x, beatY + 8);
     }
     
+    // Playback indicator
     if (this.isPlaying && this.playbackTime >= 0) {
-      const currentPos = noteStartX + (this.playbackTime / this.beatDuration) * noteSpacing;
-      if (currentPos < W - 60) {
-        ctx.strokeStyle = this.color;
+      const pos = startX + (this.playbackTime / this.beatDuration) * beatSpacing;
+      if (pos < W - 30) {
+        ctx.strokeStyle = '#fff';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(currentPos, staffY - 50);
-        ctx.lineTo(currentPos, staffY + 50);
+        ctx.moveTo(pos, beatY - 50);
+        ctx.lineTo(pos, beatY + 50);
         ctx.stroke();
       }
     }
     
-    const tapY = 550;
+    // Demo note highlights
+    for (const note of this.demoNotes) {
+      const x = startX + note.beat * beatSpacing;
+      ctx.save();
+      ctx.globalAlpha = note.time;
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(x, beatY, 40, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Tap zone
+    const tapY = 500;
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
-    ctx.roundRect(60, tapY, W - 120, 200, 20);
+    ctx.roundRect(60, tapY, W - 120, 250, 20);
     ctx.fill();
     ctx.strokeStyle = this.isPlaying ? this.color : COLORS.cardBorder;
     ctx.lineWidth = 3;
     ctx.stroke();
     
-    ctx.fillStyle = this.isPlaying ? '#fff' : COLORS.textDim;
-    ctx.font = '28px Georgia';
     ctx.textAlign = 'center';
-    
     if (this.countingIn) {
       ctx.fillStyle = this.color;
-      ctx.font = 'bold 72px Georgia';
-      ctx.fillText(this.countInBeat || '', W/2, tapY + 110);
+      ctx.font = 'bold 96px Georgia';
+      ctx.fillText(this.countInBeat || '', W/2, tapY + 140);
       ctx.font = '24px Georgia';
       ctx.fillStyle = COLORS.textDim;
-      ctx.fillText('Get ready...', W/2, tapY + 160);
+      ctx.fillText('Get ready...', W/2, tapY + 200);
     } else {
-      ctx.fillText(this.isPlaying ? 'TAP HERE!' : 'Listen...', W/2, tapY + 100);
+      ctx.fillStyle = this.isPlaying ? '#fff' : COLORS.textDim;
+      ctx.font = '32px Georgia';
+      ctx.fillText(this.isPlaying ? '👆 TAP HERE! 👆' : 'Listen first...', W/2, tapY + 130);
     }
     
-    for (const tap of this.playerTaps) {
-      const x = noteStartX + tap * noteSpacing;
-      ctx.fillStyle = this.color;
-      ctx.globalAlpha = 0.7;
-      ctx.beginPath();
-      ctx.arc(x, tapY + 160, 15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    
+    // Feedback
     if (this.feedback) {
       ctx.save();
       ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
       ctx.font = 'bold 36px Georgia';
-      ctx.textAlign = 'center';
       ctx.globalAlpha = Math.min(1, this.feedbackTimer);
-      ctx.fillText(this.feedback.text, W/2, 480);
+      ctx.fillText(this.feedback.text, W/2, 420);
       ctx.restore();
     }
     
+    // Demo button
     if (!this.isPlaying && !this.demoPlaying && !this.countingIn) {
-      const btnText = this.phase === 'demo' || this.feedback?.type === 'retry' ? '▶ Listen Again' : '▶ Play Demo';
-      drawButton(ctx, W/2 - 100, 820, 200, 50, btnText, this.color, false);
+      drawButton(ctx, W/2 - 100, 820, 200, 50, '▶ Listen', this.color, false);
     }
     
+    // Progress
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '18px Georgia';
     ctx.textAlign = 'right';
-    ctx.fillText(`Pattern ${this.currentPattern + 1}/${this.patterns.length}`, W - 30, 90);
+    ctx.fillText(`${this.currentPattern + 1}/${this.patterns.length}`, W - 30, 90);
     
+    // Bert
     if (this.bert.active) {
       drawBert(ctx, this.bert.x, this.bert.y, 0.7, {
         bounce: Math.sin(this.time * 6) * 8,
         wiggle: this.bert.wiggle
       });
-      
-      const distractions = ['BAAA!', 'Hey!', '👀', 'Oops!', 'Hehe~', '♪♫'];
-      const textIndex = Math.floor(this.time * 2) % distractions.length;
-      ctx.save();
+      const texts = ['BAAA!', 'Hey!', '👀', 'Hehe~'];
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 24px Georgia';
       ctx.textAlign = 'center';
-      ctx.globalAlpha = 0.9;
-      ctx.fillText(distractions[textIndex], this.bert.x, this.bert.y - 80);
-      ctx.restore();
+      ctx.fillText(texts[Math.floor(this.time * 2) % texts.length], this.bert.x, this.bert.y - 80);
     }
   }
   
@@ -1598,14 +1486,14 @@ class RhythmLesson {
     
     ctx.fillStyle = '#fff';
     ctx.font = '28px Georgia';
-    ctx.fillText(`Score: ${this.score}`, W/2, 570);
-    ctx.fillText(`Accuracy: ${Math.round(this.successes / this.attempts * 100)}%`, W/2, 610);
+    const acc = this.attempts > 0 ? Math.round(this.successes / this.attempts * 100) : 100;
+    ctx.fillText(`Accuracy: ${acc}%`, W/2, 570);
     
-    const stars = this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1;
+    const stars = acc >= 90 ? 3 : acc >= 70 ? 2 : 1;
     ctx.font = '60px Georgia';
-    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    ctx.fillText('⭐'.repeat(stars), W/2, 670);
     
-    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
+    drawButton(ctx, W/2 - 100, 780, 200, 50, 'Continue', this.color, false);
   }
   
   handleTap(x, y) {
@@ -1625,16 +1513,16 @@ class RhythmLesson {
         }
       }
     }
-    else if (this.phase === 'demo' || (this.phase === 'practice' && !this.isPlaying && !this.demoPlaying && !this.countingIn)) {
+    else if ((this.phase === 'demo' || this.phase === 'practice') && !this.isPlaying && !this.demoPlaying && !this.countingIn) {
       if (hitRect(x, y, W/2 - 100, 820, 200, 50)) {
         Audio.playClick();
         this.startDemo();
       }
     }
     else if (this.phase === 'practice' && this.isPlaying) {
-      if (hitRect(x, y, 60, 550, W - 120, 200)) {
+      if (hitRect(x, y, 60, 500, W - 120, 250)) {
         const pattern = this.patterns[this.currentPattern];
-        const totalBeats = pattern.timeSig === '3/4' ? 3 : 4;
+        const totalBeats = pattern.timeSig || 4;
         const beat = this.playbackTime / this.beatDuration;
         if (beat >= 0 && beat < totalBeats) {
           this.playerTaps.push(beat);
@@ -1644,7 +1532,7 @@ class RhythmLesson {
       }
     }
     else if (this.phase === 'complete') {
-      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+      if (hitRect(x, y, W/2 - 100, 780, 200, 50)) {
         Audio.playClick();
         Game.endLesson();
       }
@@ -1660,7 +1548,8 @@ class RhythmLesson {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  HARMONY LESSON (WILLOW)                                          ║
+// ║  HARMONY LESSON (WILLOW) - Proper ear training!                   ║
+// ║  Uses RELATIVE pitch - Major vs Minor quality, not specific notes ║
 // ╚══════════════════════════════════════════════════════════════════╝
 class HarmonyLesson {
   constructor(lessonNum) {
@@ -1681,65 +1570,78 @@ class HarmonyLesson {
     this.feedback = null;
     this.feedbackTimer = 0;
     this.selectedAnswer = -1;
-    this.correctAnswer = -1;
     this.showingAnswer = false;
+    this.currentRoot = 220 + Math.random() * 220; // Random root each time
   }
   
   setupLesson() {
+    // All lessons use RELATIVE pitch - no perfect pitch required!
     const lessonData = {
       1: {
-        title: 'Major Chords',
-        introText: ["Hello! I'm Willow, your harmony guide.", "Chords are notes played together.", "Major chords sound HAPPY and bright!", "They're built: Root + Major 3rd + 5th", "Let's learn to recognize them!"],
+        title: 'One or Many?',
+        introText: ["Hello! I'm Willow.", "Let's train your ears!", "A single note sounds alone.", "A CHORD is multiple notes together.", "Can you hear the difference?"],
         questions: [
-          { type: 'play', chord: ['C4', 'E4', 'G4'], name: 'C Major', options: ['C Major', 'C Minor', 'G Major', 'F Major'], correct: 0 },
-          { type: 'play', chord: ['G4', 'B4', 'D5'], name: 'G Major', options: ['F Major', 'G Minor', 'G Major', 'D Major'], correct: 2 },
-          { type: 'play', chord: ['F4', 'A4', 'C5'], name: 'F Major', options: ['C Major', 'F Minor', 'A Major', 'F Major'], correct: 3 },
+          { type: 'single-vs-chord', answer: 'single' },
+          { type: 'single-vs-chord', answer: 'chord' },
+          { type: 'single-vs-chord', answer: 'chord' },
+          { type: 'single-vs-chord', answer: 'single' },
+          { type: 'single-vs-chord', answer: 'chord' },
         ]
       },
       2: {
-        title: 'Minor Chords',
-        introText: ["Now for something moodier...", "Minor chords sound SAD or serious.", "They're built: Root + Minor 3rd + 5th", "Just one note different from major!", "Listen for that darker quality."],
+        title: 'Happy or Sad?',
+        introText: ["This is the MOST important skill!", "MAJOR chords sound HAPPY ☀️", "MINOR chords sound SAD 🌙", "Same notes, different FEELING.", "Trust your gut!"],
         questions: [
-          { type: 'play', chord: ['A4', 'C5', 'E5'], name: 'A Minor', options: ['A Major', 'A Minor', 'E Minor', 'D Minor'], correct: 1 },
-          { type: 'play', chord: ['E4', 'G4', 'B4'], name: 'E Minor', options: ['E Major', 'G Major', 'E Minor', 'B Minor'], correct: 2 },
-          { type: 'play', chord: ['D4', 'F4', 'A4'], name: 'D Minor', options: ['D Major', 'F Major', 'A Minor', 'D Minor'], correct: 3 },
+          { type: 'major-minor', answer: 'major' },
+          { type: 'major-minor', answer: 'minor' },
+          { type: 'major-minor', answer: 'major' },
+          { type: 'major-minor', answer: 'minor' },
+          { type: 'major-minor', answer: 'major' },
+          { type: 'major-minor', answer: 'minor' },
         ]
       },
       3: {
-        title: 'Chord Recognition',
-        introText: ["Can you tell them apart?", "Major = Happy, bright ☀️", "Minor = Sad, dark 🌙", "Listen carefully to each chord.", "Trust your ears!"],
+        title: 'Same or Different?',
+        introText: ["Now compare TWO chords.", "Are they the SAME chord?", "Or DIFFERENT chords?", "Listen to the quality!", "Don't overthink it."],
         questions: [
-          { type: 'play', chord: ['C4', 'E4', 'G4'], name: 'C Major', options: ['Major', 'Minor'], correct: 0 },
-          { type: 'play', chord: ['A4', 'C5', 'E5'], name: 'A Minor', options: ['Major', 'Minor'], correct: 1 },
-          { type: 'play', chord: ['G4', 'B4', 'D5'], name: 'G Major', options: ['Major', 'Minor'], correct: 0 },
-          { type: 'play', chord: ['E4', 'G4', 'B4'], name: 'E Minor', options: ['Major', 'Minor'], correct: 1 },
+          { type: 'same-different', answer: 'same' },
+          { type: 'same-different', answer: 'different' },
+          { type: 'same-different', answer: 'same' },
+          { type: 'same-different', answer: 'different' },
+          { type: 'same-different', answer: 'different' },
         ]
       },
       4: {
-        title: 'The I-IV-V',
-        introText: ["The most important progression!", "I-IV-V is everywhere in music.", "In C: C Major, F Major, G Major", "These chords just WORK together.", "Listen for this classic pattern!"],
+        title: 'Tension & Rest',
+        introText: ["Music creates TENSION...", "...then RELEASES it.", "Some chords feel 'finished'", "Others want to GO somewhere.", "Home vs Away feeling!"],
         questions: [
-          { type: 'progression', chords: [['C4','E4','G4'], ['F4','A4','C5'], ['G4','B4','D5']], name: 'I-IV-V in C', options: ['I-IV-V', 'I-V-IV', 'IV-I-V'], correct: 0 },
-          { type: 'progression', chords: [['G4','B4','D5'], ['C5','E5','G5'], ['D5','F5','A5']], name: 'I-IV-V in G', options: ['I-V-IV', 'I-IV-V', 'V-IV-I'], correct: 1 },
-          { type: 'progression', chords: [['C4','E4','G4'], ['G4','B4','D5'], ['F4','A4','C5']], name: 'I-V-IV', options: ['I-IV-V', 'I-V-IV', 'IV-V-I'], correct: 1 },
+          { type: 'tension-rest', answer: 'rest' },
+          { type: 'tension-rest', answer: 'tension' },
+          { type: 'tension-rest', answer: 'rest' },
+          { type: 'tension-rest', answer: 'tension' },
+          { type: 'tension-rest', answer: 'rest' },
         ]
       },
       5: {
-        title: 'Seventh Chords',
-        introText: ["Let's add some color!", "7th chords add a 4th note.", "They sound jazzy and complex.", "Major 7 = dreamy", "Dominant 7 = bluesy tension!"],
+        title: 'Chord Changes',
+        introText: ["Now for MOVEMENT!", "Did the chord CHANGE?", "Or stay the SAME?", "Listen across time.", "Feel the motion!"],
         questions: [
-          { type: 'play', chord: ['C4', 'E4', 'G4', 'B4'], name: 'C Major 7', options: ['C Major', 'C Major 7', 'C7', 'C Minor 7'], correct: 1 },
-          { type: 'play', chord: ['G4', 'B4', 'D5', 'F5'], name: 'G7', options: ['G Major', 'G Major 7', 'G7', 'G Minor'], correct: 2 },
-          { type: 'play', chord: ['A4', 'C5', 'E5', 'G5'], name: 'A Minor 7', options: ['A Major 7', 'A7', 'A Minor', 'A Minor 7'], correct: 3 },
+          { type: 'changed', answer: 'same' },
+          { type: 'changed', answer: 'changed' },
+          { type: 'changed', answer: 'changed' },
+          { type: 'changed', answer: 'same' },
+          { type: 'changed', answer: 'changed' },
         ]
       },
       6: {
-        title: 'Chord Progressions',
-        introText: ["Time to hear full progressions!", "Multiple chords in sequence.", "Feel how they move and resolve.", "This is the heart of songwriting!", "Let's identify some classics."],
+        title: 'The Full Picture',
+        introText: ["You've learned so much!", "Now hear PROGRESSIONS.", "Multiple chords in sequence.", "Feel the journey!", "Where does it go?"],
         questions: [
-          { type: 'progression', chords: [['C4','E4','G4'], ['A4','C5','E5'], ['F4','A4','C5'], ['G4','B4','D5']], name: 'I-vi-IV-V', options: ['I-IV-V-I', 'I-vi-IV-V', 'I-V-vi-IV'], correct: 1 },
-          { type: 'progression', chords: [['C4','E4','G4'], ['G4','B4','D5'], ['A4','C5','E5'], ['F4','A4','C5']], name: 'I-V-vi-IV', options: ['I-V-vi-IV', 'I-vi-IV-V', 'I-IV-V-vi'], correct: 0 },
-          { type: 'progression', chords: [['A4','C5','E5'], ['F4','A4','C5'], ['C4','E4','G4'], ['G4','B4','D5']], name: 'vi-IV-I-V', options: ['I-IV-V-vi', 'vi-IV-I-V', 'IV-vi-V-I'], correct: 1 },
+          { type: 'progression-end', answer: 'resolved' },
+          { type: 'progression-end', answer: 'unresolved' },
+          { type: 'progression-mood', answer: 'happy' },
+          { type: 'progression-mood', answer: 'sad' },
+          { type: 'progression-end', answer: 'resolved' },
         ]
       }
     };
@@ -1747,8 +1649,105 @@ class HarmonyLesson {
     const data = lessonData[this.lessonNum];
     this.title = data.title;
     this.introText = data.introText;
-    this.questions = data.questions;
+    this.questions = shuffle(data.questions);
     this.introIndex = 0;
+  }
+  
+  playCurrentSound() {
+    const q = this.questions[this.currentQuestion];
+    this.currentRoot = 220 + Math.random() * 220; // Randomize each play
+    
+    switch(q.type) {
+      case 'single-vs-chord':
+        if (q.answer === 'single') {
+          Audio.playNote(this.currentRoot, 0.6);
+        } else {
+          Audio.playChord(this.currentRoot, Math.random() > 0.5 ? 'major' : 'minor');
+        }
+        break;
+        
+      case 'major-minor':
+        Audio.playChord(this.currentRoot, q.answer);
+        break;
+        
+      case 'same-different':
+        const type1 = Math.random() > 0.5 ? 'major' : 'minor';
+        const type2 = q.answer === 'same' ? type1 : (type1 === 'major' ? 'minor' : 'major');
+        Audio.playChord(this.currentRoot, type1);
+        setTimeout(() => Audio.playChord(this.currentRoot, type2), 800);
+        break;
+        
+      case 'tension-rest':
+        if (q.answer === 'rest') {
+          // Tonic chord - feels resolved
+          Audio.playChord(this.currentRoot, 'major');
+        } else {
+          // Dominant chord - wants to resolve
+          Audio.playChord(this.currentRoot * 1.5, 'major');
+        }
+        break;
+        
+      case 'changed':
+        const baseType = Math.random() > 0.5 ? 'major' : 'minor';
+        Audio.playChord(this.currentRoot, baseType);
+        setTimeout(() => {
+          if (q.answer === 'same') {
+            Audio.playChord(this.currentRoot, baseType);
+          } else {
+            Audio.playChord(this.currentRoot * (Math.random() > 0.5 ? 1.25 : 1.33), baseType);
+          }
+        }, 800);
+        break;
+        
+      case 'progression-end':
+        // Play I-IV-V or I-IV (unresolved)
+        Audio.playChord(this.currentRoot, 'major');
+        setTimeout(() => Audio.playChord(this.currentRoot * 1.33, 'major'), 700);
+        setTimeout(() => {
+          if (q.answer === 'resolved') {
+            Audio.playChord(this.currentRoot * 1.5, 'major');
+            setTimeout(() => Audio.playChord(this.currentRoot, 'major'), 700);
+          } else {
+            Audio.playChord(this.currentRoot * 1.5, 'major');
+          }
+        }, 1400);
+        break;
+        
+      case 'progression-mood':
+        const mood = q.answer === 'happy' ? 'major' : 'minor';
+        Audio.playChord(this.currentRoot, mood);
+        setTimeout(() => Audio.playChord(this.currentRoot * 1.33, mood), 600);
+        setTimeout(() => Audio.playChord(this.currentRoot, mood), 1200);
+        break;
+    }
+  }
+  
+  getOptions() {
+    const q = this.questions[this.currentQuestion];
+    switch(q.type) {
+      case 'single-vs-chord': return ['Single Note', 'Chord (Multiple)'];
+      case 'major-minor': return ['Major (Happy ☀️)', 'Minor (Sad 🌙)'];
+      case 'same-different': return ['Same', 'Different'];
+      case 'tension-rest': return ['Rest (Home)', 'Tension (Away)'];
+      case 'changed': return ['Stayed Same', 'Changed'];
+      case 'progression-end': return ['Resolved (Finished)', 'Unresolved (Hanging)'];
+      case 'progression-mood': return ['Happy Journey', 'Sad Journey'];
+    }
+  }
+  
+  getCorrectIndex() {
+    const q = this.questions[this.currentQuestion];
+    const opts = this.getOptions();
+    const answerMap = {
+      'single': 0, 'chord': 1,
+      'major': 0, 'minor': 1,
+      'same': 0, 'different': 1,
+      'rest': 0, 'tension': 1,
+      'changed': 1,
+      'resolved': 0, 'unresolved': 1,
+      'happy': 0, 'sad': 1
+    };
+    return answerMap[q.answer];
   }
   
   update(dt) {
@@ -1761,7 +1760,6 @@ class HarmonyLesson {
       setTimeout(() => this.teacherAnim.blink = false, 150);
       this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
     }
-    
     this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
     
     if (this.feedback) {
@@ -1794,13 +1792,9 @@ class HarmonyLesson {
     ctx.textAlign = 'center';
     ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
     
-    if (this.phase === 'intro') {
-      this.renderIntro(ctx);
-    } else if (this.phase === 'practice') {
-      this.renderPractice(ctx);
-    } else if (this.phase === 'complete') {
-      this.renderComplete(ctx);
-    }
+    if (this.phase === 'intro') this.renderIntro(ctx);
+    else if (this.phase === 'practice') this.renderPractice(ctx);
+    else if (this.phase === 'complete') this.renderComplete(ctx);
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
@@ -1839,49 +1833,52 @@ class HarmonyLesson {
       ctx.fill();
     }
     
-    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start!';
     drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
   }
   
   renderPractice(ctx) {
     this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
     
-    const q = this.questions[this.currentQuestion];
-    
     // Play button
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
-    ctx.roundRect(W/2 - 80, 200, 160, 80, 16);
+    ctx.roundRect(W/2 - 100, 200, 200, 100, 20);
     ctx.fill();
     ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
     
     ctx.fillStyle = this.color;
-    ctx.font = '36px Georgia';
+    ctx.font = '48px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('▶ Play', W/2, 252);
+    ctx.fillText('▶', W/2, 265);
+    ctx.font = '20px Georgia';
+    ctx.fillStyle = COLORS.textDim;
+    ctx.fillText('Tap to listen', W/2, 290);
     
     // Question
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Georgia';
-    ctx.fillText('What chord is this?', W/2, 340);
+    ctx.font = '26px Georgia';
+    ctx.fillText('What do you hear?', W/2, 360);
     
     // Options
-    const optY = 400;
-    const optH = 70;
-    const optGap = 15;
+    const options = this.getOptions();
+    const optY = 420;
+    const optH = 90;
+    const optGap = 20;
+    const correctIdx = this.getCorrectIndex();
     
-    q.options.forEach((opt, i) => {
+    options.forEach((opt, i) => {
       const y = optY + i * (optH + optGap);
       let bgColor = COLORS.card;
       let borderColor = COLORS.cardBorder;
       
       if (this.showingAnswer) {
-        if (i === q.correct) {
+        if (i === correctIdx) {
           bgColor = 'rgba(74, 222, 128, 0.3)';
           borderColor = COLORS.success;
-        } else if (i === this.selectedAnswer && i !== q.correct) {
+        } else if (i === this.selectedAnswer) {
           bgColor = 'rgba(239, 68, 68, 0.3)';
           borderColor = COLORS.error;
         }
@@ -1889,16 +1886,16 @@ class HarmonyLesson {
       
       ctx.fillStyle = bgColor;
       ctx.beginPath();
-      ctx.roundRect(60, y, W - 120, optH, 12);
+      ctx.roundRect(60, y, W - 120, optH, 16);
       ctx.fill();
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 2;
       ctx.stroke();
       
       ctx.fillStyle = '#fff';
-      ctx.font = '24px Georgia';
+      ctx.font = '28px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText(opt, W/2, y + 44);
+      ctx.fillText(opt, W/2, y + 55);
     });
     
     // Feedback
@@ -1906,9 +1903,8 @@ class HarmonyLesson {
       ctx.save();
       ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
       ctx.font = 'bold 36px Georgia';
-      ctx.textAlign = 'center';
       ctx.globalAlpha = Math.min(1, this.feedbackTimer);
-      ctx.fillText(this.feedback.text, W/2, 760);
+      ctx.fillText(this.feedback.text, W/2, 750);
       ctx.restore();
     }
     
@@ -1916,7 +1912,7 @@ class HarmonyLesson {
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '18px Georgia';
     ctx.textAlign = 'right';
-    ctx.fillText(`Question ${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
+    ctx.fillText(`${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
   }
   
   renderComplete(ctx) {
@@ -1929,25 +1925,14 @@ class HarmonyLesson {
     
     ctx.fillStyle = '#fff';
     ctx.font = '28px Georgia';
-    ctx.fillText(`Score: ${this.score}`, W/2, 570);
-    ctx.fillText(`Accuracy: ${Math.round(this.successes / this.attempts * 100)}%`, W/2, 610);
+    const acc = this.attempts > 0 ? Math.round(this.successes / this.attempts * 100) : 100;
+    ctx.fillText(`Accuracy: ${acc}%`, W/2, 570);
     
-    const stars = this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1;
+    const stars = acc >= 90 ? 3 : acc >= 70 ? 2 : 1;
     ctx.font = '60px Georgia';
-    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    ctx.fillText('⭐'.repeat(stars), W/2, 670);
     
-    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
-  }
-  
-  playCurrentChord() {
-    const q = this.questions[this.currentQuestion];
-    if (q.type === 'play') {
-      Audio.playChord(q.chord);
-    } else if (q.type === 'progression') {
-      q.chords.forEach((chord, i) => {
-        setTimeout(() => Audio.playChord(chord), i * 700);
-      });
-    }
+    drawButton(ctx, W/2 - 100, 780, 200, 50, 'Continue', this.color, false);
   }
   
   handleTap(x, y) {
@@ -1968,41 +1953,41 @@ class HarmonyLesson {
     }
     else if (this.phase === 'practice' && !this.showingAnswer) {
       // Play button
-      if (hitRect(x, y, W/2 - 80, 200, 160, 80)) {
-        this.playCurrentChord();
+      if (hitRect(x, y, W/2 - 100, 200, 200, 100)) {
+        this.playCurrentSound();
         return;
       }
       
       // Options
-      const q = this.questions[this.currentQuestion];
-      const optY = 400;
-      const optH = 70;
-      const optGap = 15;
+      const options = this.getOptions();
+      const optY = 420;
+      const optH = 90;
+      const optGap = 20;
       
-      for (let i = 0; i < q.options.length; i++) {
-        const y = optY + i * (optH + optGap);
-        if (hitRect(x, y, 60, y, W - 120, optH)) {
+      for (let i = 0; i < options.length; i++) {
+        const oy = optY + i * (optH + optGap);
+        if (hitRect(x, y, 60, oy, W - 120, optH)) {
           this.attempts++;
           this.selectedAnswer = i;
           this.showingAnswer = true;
           
-          if (i === q.correct) {
+          if (i === this.getCorrectIndex()) {
             this.successes++;
             this.score += 100;
-            this.feedback = { type: 'success', text: 'Correct! 🎵' };
+            this.feedback = { type: 'success', text: 'Correct! 👂' };
             Audio.playSuccess();
-            spawnParticles(W/2, y + optH/2, COLORS.success, 20);
+            spawnParticles(W/2, oy + optH/2, COLORS.success, 20);
           } else {
-            this.feedback = { type: 'retry', text: `It was ${q.options[q.correct]}` };
+            this.feedback = { type: 'retry', text: 'Not quite! Listen again.' };
             Audio.playFail();
           }
-          this.feedbackTimer = 2;
+          this.feedbackTimer = 1.5;
           break;
         }
       }
     }
     else if (this.phase === 'complete') {
-      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+      if (hitRect(x, y, W/2 - 100, 780, 200, 50)) {
         Audio.playClick();
         Game.endLesson();
       }
@@ -2011,7 +1996,7 @@ class HarmonyLesson {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  MELODY LESSON (DROPJE)                                           ║
+// ║  MELODY LESSON (DROPJE) - Contour and relative pitch              ║
 // ╚══════════════════════════════════════════════════════════════════╝
 class MelodyLesson {
   constructor(lessonNum) {
@@ -2031,70 +2016,75 @@ class MelodyLesson {
     
     this.feedback = null;
     this.feedbackTimer = 0;
-    
-    this.playerNotes = [];
-    this.targetNotes = [];
-    this.isRecording = false;
-    this.playbackIndex = 0;
     this.selectedAnswer = -1;
     this.showingAnswer = false;
+    
+    this.playerNotes = [];
+    this.targetPattern = [];
+    this.baseFreq = 300 + Math.random() * 100;
   }
   
   setupLesson() {
     const lessonData = {
       1: {
-        title: 'Scale Steps',
-        introText: ["Woof! I'm Dropje, melody expert!", "Melodies use notes from scales.", "The major scale goes: Do Re Mi Fa Sol La Ti Do", "Each step up is one note higher.", "Let's explore!"],
-        type: 'echo',
-        patterns: [
-          { notes: ['C4', 'D4', 'E4'], display: 'Do Re Mi' },
-          { notes: ['E4', 'F4', 'G4'], display: 'Mi Fa Sol' },
-          { notes: ['G4', 'A4', 'B4', 'C5'], display: 'Sol La Ti Do' },
+        title: 'High or Low?',
+        introText: ["Woof! I'm Dropje!", "Let's explore PITCH!", "Some notes are HIGH ↑", "Some notes are LOW ↓", "Which one is higher?"],
+        type: 'high-low',
+        questions: [
+          { notes: [1, 2], answer: 'second' }, // second is higher
+          { notes: [1.5, 1], answer: 'first' },
+          { notes: [1, 1.8], answer: 'second' },
+          { notes: [1.6, 1], answer: 'first' },
+          { notes: [1, 1.5], answer: 'second' },
         ]
       },
       2: {
-        title: 'Intervals',
-        introText: ["Intervals = distance between notes.", "A 2nd is one step (C to D).", "A 3rd skips a note (C to E).", "A 5th is a big jump (C to G)!", "Listen for how far notes jump."],
-        type: 'identify',
+        title: 'Up, Down, Same',
+        introText: ["Melodies MOVE!", "They go UP ↑", "They go DOWN ↓", "Or STAY the same →", "Feel the direction!"],
+        type: 'direction',
         questions: [
-          { notes: ['C4', 'D4'], answer: '2nd (Step)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
-          { notes: ['C4', 'E4'], answer: '3rd (Skip)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
-          { notes: ['C4', 'G4'], answer: '5th (Jump)', options: ['2nd (Step)', '3rd (Skip)', '5th (Jump)'] },
+          { pattern: [1, 1.25, 1.5], answer: 'up' },
+          { pattern: [1.5, 1.25, 1], answer: 'down' },
+          { pattern: [1, 1, 1], answer: 'same' },
+          { pattern: [1, 1.125, 1.25], answer: 'up' },
+          { pattern: [1.25, 1.125, 1], answer: 'down' },
         ]
       },
       3: {
-        title: 'Echo Melodies',
-        introText: ["Time to use your ears!", "I'll play a short melody.", "Then YOU play it back!", "Tap the notes in the same order.", "Ready to echo?"],
-        type: 'echo',
-        patterns: [
-          { notes: ['C4', 'E4', 'G4'], display: 'Do Mi Sol' },
-          { notes: ['G4', 'E4', 'C4'], display: 'Sol Mi Do' },
-          { notes: ['C4', 'D4', 'E4', 'C4'], display: 'Do Re Mi Do' },
+        title: 'Step or Jump?',
+        introText: ["Notes can move SMOOTHLY...", "That's a STEP (small)", "Or they can JUMP (big)!", "Steps feel gentle 🚶", "Jumps feel exciting 🦘"],
+        type: 'step-jump',
+        questions: [
+          { interval: 1.125, answer: 'step' }, // Small interval
+          { interval: 1.5, answer: 'jump' }, // Perfect 5th
+          { interval: 1.0625, answer: 'step' }, // Very small
+          { interval: 2, answer: 'jump' }, // Octave
+          { interval: 1.25, answer: 'step' }, // Major 3rd (borderline, but stepwise feel)
         ]
       },
       4: {
-        title: 'Pattern Recognition',
-        introText: ["Melodies have patterns!", "Notes can go UP, DOWN, or REPEAT.", "Listen for the shape of the melody.", "Is it rising? Falling? Staying?", "Let's find out!"],
-        type: 'identify',
-        questions: [
-          { notes: ['C4', 'D4', 'E4', 'F4'], answer: 'Going Up ↑', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
-          { notes: ['G4', 'F4', 'E4', 'D4'], answer: 'Going Down ↓', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
-          { notes: ['E4', 'E4', 'E4', 'E4'], answer: 'Staying Same →', options: ['Going Up ↑', 'Going Down ↓', 'Staying Same →'] },
+        title: 'Echo Back',
+        introText: ["Time to PLAY!", "I'll play a short tune.", "Then YOU play it back!", "Use the buttons below.", "Listen carefully!"],
+        type: 'echo',
+        patterns: [
+          [1, 1.25, 1.5], // Do Mi Sol
+          [1.5, 1.25, 1], // Sol Mi Do
+          [1, 1.125, 1.25, 1], // Do Re Mi Do
         ]
       },
       5: {
-        title: 'Melodic Dictation',
-        introText: ["Advanced ear training!", "I'll play a longer melody.", "Remember all the notes!", "Then play them back perfectly.", "Concentrate!"],
+        title: 'Longer Echoes',
+        introText: ["Getting harder!", "Longer patterns now.", "Remember the SHAPE.", "High, low, up, down...", "You can do it!"],
         type: 'echo',
         patterns: [
-          { notes: ['C4', 'E4', 'G4', 'E4', 'C4'], display: '5 notes' },
-          { notes: ['G4', 'F4', 'E4', 'D4', 'C4'], display: 'Descending' },
-          { notes: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4'], display: '6 notes!' },
+          [1, 1.25, 1.5, 1.25], // Up and back
+          [1.5, 1.25, 1, 1.25, 1.5], // Down and up
+          [1, 1.125, 1.25, 1.5, 1.25, 1], // Arch shape
         ]
       },
       6: {
-        title: 'Free Composition',
-        introText: ["Now it's YOUR turn!", "Create your own melody.", "Use the notes to make music.", "There's no wrong answer here!", "Express yourself!"],
+        title: 'Make Your Own',
+        introText: ["Now YOU'RE the composer!", "Create your own melody.", "Use the notes freely.", "There's no wrong answer!", "Express yourself! 🎵"],
         type: 'compose',
         patterns: []
       }
@@ -2104,8 +2094,8 @@ class MelodyLesson {
     this.title = data.title;
     this.introText = data.introText;
     this.lessonType = data.type;
+    this.questions = data.questions ? shuffle(data.questions) : [];
     this.patterns = data.patterns || [];
-    this.questions = data.questions || [];
     this.introIndex = 0;
   }
   
@@ -2119,7 +2109,6 @@ class MelodyLesson {
       setTimeout(() => this.teacherAnim.blink = false, 150);
       this.teacherAnim.blinkTimer = 3 + Math.random() * 2;
     }
-    
     this.teacherAnim.talk = (this.phase === 'intro' && Math.sin(this.time * 10) > 0.3);
     
     if (this.feedback) {
@@ -2127,9 +2116,9 @@ class MelodyLesson {
       if (this.feedbackTimer <= 0) {
         const wasSuccess = this.feedback.type === 'success';
         this.feedback = null;
-        this.playerNotes = [];
         this.showingAnswer = false;
         this.selectedAnswer = -1;
+        this.playerNotes = [];
         
         if (wasSuccess && this.phase !== 'complete') {
           this.currentQuestion++;
@@ -2154,19 +2143,13 @@ class MelodyLesson {
     ctx.textAlign = 'center';
     ctx.fillText(`Lesson ${this.lessonNum}: ${this.title}`, W/2, 50);
     
-    if (this.phase === 'intro') {
-      this.renderIntro(ctx);
-    } else if (this.phase === 'practice') {
-      if (this.lessonType === 'echo') {
-        this.renderEcho(ctx);
-      } else if (this.lessonType === 'identify') {
-        this.renderIdentify(ctx);
-      } else if (this.lessonType === 'compose') {
-        this.renderCompose(ctx);
-      }
-    } else if (this.phase === 'complete') {
-      this.renderComplete(ctx);
+    if (this.phase === 'intro') this.renderIntro(ctx);
+    else if (this.phase === 'practice') {
+      if (this.lessonType === 'echo') this.renderEcho(ctx);
+      else if (this.lessonType === 'compose') this.renderCompose(ctx);
+      else this.renderQuestion(ctx);
     }
+    else if (this.phase === 'complete') this.renderComplete(ctx);
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
@@ -2205,131 +2188,65 @@ class MelodyLesson {
       ctx.fill();
     }
     
-    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start Practice!';
+    const btnText = this.introIndex < this.introText.length - 1 ? 'Continue' : 'Start!';
     drawButton(ctx, W/2 - 100, 700, 200, 50, btnText, this.color, false);
   }
   
-  renderEcho(ctx) {
+  renderQuestion(ctx) {
     this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
-    
-    const pattern = this.patterns[this.currentQuestion];
-    
-    // Instructions
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px Georgia';
-    ctx.textAlign = 'center';
-    ctx.fillText('Listen, then play it back!', W/2, 200);
-    ctx.fillStyle = this.color;
-    ctx.fillText(pattern.display, W/2, 240);
     
     // Play button
     ctx.fillStyle = COLORS.card;
     ctx.beginPath();
-    ctx.roundRect(W/2 - 80, 280, 160, 70, 16);
+    ctx.roundRect(W/2 - 100, 200, 200, 100, 20);
     ctx.fill();
     ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
     
     ctx.fillStyle = this.color;
-    ctx.font = '30px Georgia';
-    ctx.fillText('▶ Listen', W/2, 325);
-    
-    // Piano keys
-    this.renderPiano(ctx, 380);
-    
-    // Player's notes
-    ctx.fillStyle = '#fff';
+    ctx.font = '48px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('▶', W/2, 265);
     ctx.font = '20px Georgia';
-    ctx.fillText(`Your notes: ${this.playerNotes.join(' ')}`, W/2, 750);
-    
-    // Submit button
-    if (this.playerNotes.length > 0) {
-      drawButton(ctx, W/2 - 80, 800, 160, 50, 'Submit', this.color, false);
-    }
-    
-    // Feedback
-    if (this.feedback) {
-      ctx.save();
-      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
-      ctx.font = 'bold 32px Georgia';
-      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
-      ctx.fillText(this.feedback.text, W/2, 900);
-      ctx.restore();
-    }
-    
-    // Progress
     ctx.fillStyle = COLORS.textDim;
-    ctx.font = '18px Georgia';
-    ctx.textAlign = 'right';
-    ctx.fillText(`Pattern ${this.currentQuestion + 1}/${this.patterns.length}`, W - 30, 90);
-  }
-  
-  renderPiano(ctx, y) {
-    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
-    const keyW = 70;
-    const keyH = 150;
-    const startX = (W - keyW * notes.length) / 2;
+    ctx.fillText('Tap to listen', W/2, 290);
     
-    notes.forEach((note, i) => {
-      const x = startX + i * keyW;
-      const isPlayed = this.playerNotes.includes(note);
-      
-      ctx.fillStyle = isPlayed ? this.color : '#fff';
-      ctx.beginPath();
-      ctx.roundRect(x + 2, y, keyW - 4, keyH, 8);
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      ctx.fillStyle = isPlayed ? '#fff' : '#333';
-      ctx.font = '18px Georgia';
-      ctx.textAlign = 'center';
-      ctx.fillText(note.replace('4', '').replace('5', '′'), x + keyW/2, y + keyH - 20);
-    });
-  }
-  
-  renderIdentify(ctx) {
-    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    // Question text
+    let questionText = '';
+    let options = [];
     
-    const q = this.questions[this.currentQuestion];
+    if (this.lessonType === 'high-low') {
+      questionText = 'Which note is HIGHER?';
+      options = ['First Note', 'Second Note'];
+    } else if (this.lessonType === 'direction') {
+      questionText = 'Which direction?';
+      options = ['Going UP ↑', 'Going DOWN ↓', 'Staying SAME →'];
+    } else if (this.lessonType === 'step-jump') {
+      questionText = 'Step or Jump?';
+      options = ['Step (Small) 🚶', 'Jump (Big) 🦘'];
+    }
     
-    // Play button
-    ctx.fillStyle = COLORS.card;
-    ctx.beginPath();
-    ctx.roundRect(W/2 - 80, 200, 160, 80, 16);
-    ctx.fill();
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    ctx.fillStyle = this.color;
-    ctx.font = '36px Georgia';
-    ctx.textAlign = 'center';
-    ctx.fillText('▶ Play', W/2, 252);
-    
-    // Question
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Georgia';
-    ctx.fillText('What do you hear?', W/2, 340);
+    ctx.font = '26px Georgia';
+    ctx.fillText(questionText, W/2, 370);
     
     // Options
-    const optY = 400;
-    const optH = 70;
+    const optY = 420;
+    const optH = 80;
     const optGap = 15;
-    const correctIdx = q.options.indexOf(q.answer);
     
-    q.options.forEach((opt, i) => {
+    options.forEach((opt, i) => {
       const y = optY + i * (optH + optGap);
       let bgColor = COLORS.card;
       let borderColor = COLORS.cardBorder;
       
+      const correctIdx = this.getCorrectAnswerIndex();
       if (this.showingAnswer) {
         if (i === correctIdx) {
           bgColor = 'rgba(74, 222, 128, 0.3)';
           borderColor = COLORS.success;
-        } else if (i === this.selectedAnswer && i !== correctIdx) {
+        } else if (i === this.selectedAnswer) {
           bgColor = 'rgba(239, 68, 68, 0.3)';
           borderColor = COLORS.error;
         }
@@ -2337,16 +2254,16 @@ class MelodyLesson {
       
       ctx.fillStyle = bgColor;
       ctx.beginPath();
-      ctx.roundRect(60, y, W - 120, optH, 12);
+      ctx.roundRect(60, y, W - 120, optH, 16);
       ctx.fill();
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 2;
       ctx.stroke();
       
       ctx.fillStyle = '#fff';
-      ctx.font = '24px Georgia';
+      ctx.font = '26px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText(opt, W/2, y + 44);
+      ctx.fillText(opt, W/2, y + 50);
     });
     
     // Feedback
@@ -2355,7 +2272,8 @@ class MelodyLesson {
       ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
       ctx.font = 'bold 36px Georgia';
       ctx.globalAlpha = Math.min(1, this.feedbackTimer);
-      ctx.fillText(this.feedback.text, W/2, 680);
+      const fbY = this.lessonType === 'direction' ? 750 : 700;
+      ctx.fillText(this.feedback.text, W/2, fbY);
       ctx.restore();
     }
     
@@ -2363,7 +2281,87 @@ class MelodyLesson {
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '18px Georgia';
     ctx.textAlign = 'right';
-    ctx.fillText(`Question ${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
+    ctx.fillText(`${this.currentQuestion + 1}/${this.questions.length}`, W - 30, 90);
+  }
+  
+  renderEcho(ctx) {
+    this.teacherDraw(ctx, 80, 130, 0.4, this.teacherAnim);
+    
+    const pattern = this.patterns[this.currentQuestion];
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Listen, then play it back!', W/2, 200);
+    ctx.fillStyle = this.color;
+    ctx.fillText(`${pattern.length} notes`, W/2, 235);
+    
+    // Listen button
+    ctx.fillStyle = COLORS.card;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - 80, 270, 160, 70, 16);
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = this.color;
+    ctx.font = '28px Georgia';
+    ctx.fillText('▶ Listen', W/2, 315);
+    
+    // Note buttons (simplified - Low, Mid, High)
+    const btnY = 400;
+    const btnH = 120;
+    const btnW = 180;
+    const labels = ['Low', 'Mid', 'High'];
+    const values = [1, 1.25, 1.5];
+    
+    for (let i = 0; i < 3; i++) {
+      const x = 60 + i * (btnW + 20);
+      const isPlayed = this.playerNotes.length > 0 && 
+                       this.playerNotes[this.playerNotes.length - 1] === values[i];
+      
+      ctx.fillStyle = isPlayed ? this.color : COLORS.card;
+      ctx.beginPath();
+      ctx.roundRect(x, btnY, btnW, btnH, 16);
+      ctx.fill();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.fillStyle = isPlayed ? '#fff' : this.color;
+      ctx.font = '24px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + btnW/2, btnY + btnH/2 + 8);
+    }
+    
+    // Player progress
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Georgia';
+    const progress = this.playerNotes.length > 0 ? 
+      `Notes: ${this.playerNotes.length}/${pattern.length}` : 'Tap the notes!';
+    ctx.fillText(progress, W/2, 570);
+    
+    // Clear button
+    if (this.playerNotes.length > 0) {
+      drawButton(ctx, W/2 - 80, 620, 160, 45, 'Clear', COLORS.error, false);
+    }
+    
+    // Feedback
+    if (this.feedback) {
+      ctx.save();
+      ctx.fillStyle = this.feedback.type === 'success' ? COLORS.success : COLORS.warning;
+      ctx.font = 'bold 32px Georgia';
+      ctx.globalAlpha = Math.min(1, this.feedbackTimer);
+      ctx.fillText(this.feedback.text, W/2, 720);
+      ctx.restore();
+    }
+    
+    // Progress
+    ctx.fillStyle = COLORS.textDim;
+    ctx.font = '18px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Pattern ${this.currentQuestion + 1}/${this.patterns.length}`, W - 30, 90);
   }
   
   renderCompose(ctx) {
@@ -2376,26 +2374,50 @@ class MelodyLesson {
     
     ctx.fillStyle = COLORS.textDim;
     ctx.font = '20px Georgia';
-    ctx.fillText('Tap the keys to compose', W/2, 240);
+    ctx.fillText('Tap the notes to compose', W/2, 235);
     
-    // Piano
-    this.renderPiano(ctx, 300);
+    // Note buttons
+    const btnY = 300;
+    const btnH = 100;
+    const btnW = 140;
+    const labels = ['Low', 'Mid-Low', 'Mid', 'Mid-High', 'High'];
+    const values = [1, 1.125, 1.25, 1.375, 1.5];
     
-    // Player's composition
+    for (let i = 0; i < 5; i++) {
+      const row = Math.floor(i / 3);
+      const col = i % 3;
+      const x = row === 0 ? 60 + col * (btnW + 20) : 140 + (i - 3) * (btnW + 20);
+      const y = btnY + row * (btnH + 15);
+      
+      ctx.fillStyle = COLORS.card;
+      ctx.beginPath();
+      ctx.roundRect(x, y, btnW, btnH, 16);
+      ctx.fill();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      ctx.fillStyle = this.color;
+      ctx.font = '18px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + btnW/2, y + btnH/2 + 6);
+    }
+    
+    // Composition display
     ctx.fillStyle = this.color;
-    ctx.font = '24px Georgia';
-    const display = this.playerNotes.length > 0 ? this.playerNotes.join(' ') : '(tap keys to start)';
-    ctx.fillText(display, W/2, 520);
+    ctx.font = '22px Georgia';
+    const display = this.playerNotes.length > 0 ? 
+      `♪ ${this.playerNotes.length} notes` : '(tap to start)';
+    ctx.fillText(display, W/2, 560);
     
     // Buttons
     if (this.playerNotes.length > 0) {
-      drawButton(ctx, W/2 - 170, 600, 150, 50, 'Clear', COLORS.error, false);
-      drawButton(ctx, W/2 + 20, 600, 150, 50, '▶ Play', this.color, false);
+      drawButton(ctx, W/2 - 200, 620, 120, 50, 'Clear', COLORS.error, false);
+      drawButton(ctx, W/2 - 60, 620, 120, 50, '▶ Play', this.color, false);
     }
     
-    // Complete button
     if (this.playerNotes.length >= 4) {
-      drawButton(ctx, W/2 - 100, 700, 200, 50, 'Finish Lesson', COLORS.success, false);
+      drawButton(ctx, W/2 - 100, 720, 200, 50, 'Finish!', COLORS.success, false);
     }
   }
   
@@ -2411,39 +2433,51 @@ class MelodyLesson {
     ctx.font = '28px Georgia';
     
     if (this.lessonType === 'compose') {
-      ctx.fillText('Great composition! 🎵', W/2, 570);
+      ctx.fillText('Great melody! 🎵', W/2, 570);
     } else {
-      ctx.fillText(`Score: ${this.score}`, W/2, 570);
       const acc = this.attempts > 0 ? Math.round(this.successes / this.attempts * 100) : 100;
-      ctx.fillText(`Accuracy: ${acc}%`, W/2, 610);
+      ctx.fillText(`Accuracy: ${acc}%`, W/2, 570);
     }
     
-    const stars = this.lessonType === 'compose' ? 3 : 
-                  (this.successes === this.attempts ? 3 : this.successes / this.attempts >= 0.8 ? 2 : 1);
+    const stars = this.lessonType === 'compose' ? 3 :
+                  (this.attempts > 0 && this.successes / this.attempts >= 0.9 ? 3 :
+                   this.successes / this.attempts >= 0.7 ? 2 : 1);
     ctx.font = '60px Georgia';
-    ctx.fillText('⭐'.repeat(stars), W/2, 700);
+    ctx.fillText('⭐'.repeat(stars), W/2, 670);
     
-    drawButton(ctx, W/2 - 100, 800, 200, 50, 'Continue', this.color, false);
+    drawButton(ctx, W/2 - 100, 780, 200, 50, 'Continue', this.color, false);
+  }
+  
+  getCorrectAnswerIndex() {
+    const q = this.questions[this.currentQuestion];
+    if (this.lessonType === 'high-low') {
+      return q.answer === 'first' ? 0 : 1;
+    } else if (this.lessonType === 'direction') {
+      return { up: 0, down: 1, same: 2 }[q.answer];
+    } else if (this.lessonType === 'step-jump') {
+      return q.answer === 'step' ? 0 : 1;
+    }
+    return 0;
+  }
+  
+  playCurrentQuestion() {
+    const q = this.questions[this.currentQuestion];
+    this.baseFreq = 300 + Math.random() * 100;
+    
+    if (this.lessonType === 'high-low') {
+      Audio.playNote(this.baseFreq * q.notes[0], 0.4);
+      setTimeout(() => Audio.playNote(this.baseFreq * q.notes[1], 0.4), 600);
+    } else if (this.lessonType === 'direction') {
+      Audio.playMelody(this.baseFreq, q.pattern, 0.3);
+    } else if (this.lessonType === 'step-jump') {
+      Audio.playInterval(this.baseFreq, q.interval);
+    }
   }
   
   playPattern() {
     const pattern = this.patterns[this.currentQuestion];
-    pattern.notes.forEach((note, i) => {
-      setTimeout(() => Audio.playMelodyNote(note), i * 400);
-    });
-  }
-  
-  playQuestion() {
-    const q = this.questions[this.currentQuestion];
-    q.notes.forEach((note, i) => {
-      setTimeout(() => Audio.playMelodyNote(note), i * 400);
-    });
-  }
-  
-  playComposition() {
-    this.playerNotes.forEach((note, i) => {
-      setTimeout(() => Audio.playMelodyNote(note), i * 300);
-    });
+    this.baseFreq = 300 + Math.random() * 100;
+    Audio.playMelody(this.baseFreq, pattern, 0.35);
   }
   
   handleTap(x, y) {
@@ -2465,55 +2499,112 @@ class MelodyLesson {
     else if (this.phase === 'practice') {
       if (this.lessonType === 'echo') {
         this.handleEchoTap(x, y);
-      } else if (this.lessonType === 'identify') {
-        this.handleIdentifyTap(x, y);
       } else if (this.lessonType === 'compose') {
         this.handleComposeTap(x, y);
+      } else {
+        this.handleQuestionTap(x, y);
       }
     }
     else if (this.phase === 'complete') {
-      if (hitRect(x, y, W/2 - 100, 800, 200, 50)) {
+      if (hitRect(x, y, W/2 - 100, 780, 200, 50)) {
         Audio.playClick();
         Game.endLesson();
       }
     }
   }
   
+  handleQuestionTap(x, y) {
+    if (this.showingAnswer) return;
+    
+    // Play button
+    if (hitRect(x, y, W/2 - 100, 200, 200, 100)) {
+      this.playCurrentQuestion();
+      return;
+    }
+    
+    // Options
+    const numOptions = this.lessonType === 'direction' ? 3 : 2;
+    const optY = 420;
+    const optH = 80;
+    const optGap = 15;
+    
+    for (let i = 0; i < numOptions; i++) {
+      const oy = optY + i * (optH + optGap);
+      if (hitRect(x, y, 60, oy, W - 120, optH)) {
+        this.attempts++;
+        this.selectedAnswer = i;
+        this.showingAnswer = true;
+        
+        if (i === this.getCorrectAnswerIndex()) {
+          this.successes++;
+          this.score += 100;
+          this.feedback = { type: 'success', text: 'Correct! 👂' };
+          Audio.playSuccess();
+          spawnParticles(W/2, oy + optH/2, COLORS.success, 20);
+        } else {
+          this.feedback = { type: 'retry', text: 'Listen again!' };
+          Audio.playFail();
+        }
+        this.feedbackTimer = 1.5;
+        break;
+      }
+    }
+  }
+  
   handleEchoTap(x, y) {
     // Listen button
-    if (hitRect(x, y, W/2 - 80, 280, 160, 70)) {
+    if (hitRect(x, y, W/2 - 80, 270, 160, 70)) {
       this.playPattern();
       return;
     }
     
-    // Piano keys
-    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
-    const keyW = 70;
-    const keyH = 150;
-    const startX = (W - keyW * notes.length) / 2;
-    const pianoY = 380;
+    // Clear button
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 80, 620, 160, 45)) {
+      Audio.playClick();
+      this.playerNotes = [];
+      return;
+    }
     
-    for (let i = 0; i < notes.length; i++) {
-      const kx = startX + i * keyW;
-      if (hitRect(x, y, kx, pianoY, keyW, keyH)) {
-        Audio.playMelodyNote(notes[i]);
-        this.playerNotes.push(notes[i]);
-        spawnParticles(kx + keyW/2, pianoY + keyH/2, this.color, 5);
+    // Note buttons
+    const btnY = 400;
+    const btnH = 120;
+    const btnW = 180;
+    const values = [1, 1.25, 1.5];
+    
+    for (let i = 0; i < 3; i++) {
+      const bx = 60 + i * (btnW + 20);
+      if (hitRect(x, y, bx, btnY, btnW, btnH)) {
+        this.baseFreq = 300 + Math.random() * 100;
+        Audio.playNote(this.baseFreq * values[i], 0.35);
+        this.playerNotes.push(values[i]);
+        spawnParticles(bx + btnW/2, btnY + btnH/2, this.color, 5);
+        
+        // Check if complete
+        const pattern = this.patterns[this.currentQuestion];
+        if (this.playerNotes.length === pattern.length) {
+          this.checkEcho();
+        }
         return;
       }
     }
-    
-    // Submit button
-    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 80, 800, 160, 50)) {
-      this.checkEchoAnswer();
-    }
   }
   
-  checkEchoAnswer() {
+  checkEcho() {
     const pattern = this.patterns[this.currentQuestion];
     this.attempts++;
     
-    const correct = JSON.stringify(this.playerNotes) === JSON.stringify(pattern.notes);
+    // Check relative pattern (direction matters, not absolute values)
+    let correct = true;
+    for (let i = 0; i < pattern.length; i++) {
+      if (i > 0) {
+        const expectedDir = Math.sign(pattern[i] - pattern[i-1]);
+        const playerDir = Math.sign(this.playerNotes[i] - this.playerNotes[i-1]);
+        if (expectedDir !== playerDir) {
+          correct = false;
+          break;
+        }
+      }
+    }
     
     if (correct) {
       this.successes++;
@@ -2522,84 +2613,50 @@ class MelodyLesson {
       Audio.playSuccess();
       spawnParticles(W/2, H/2, COLORS.success, 20);
     } else {
-      this.feedback = { type: 'retry', text: 'Not quite, try again!' };
+      this.feedback = { type: 'retry', text: 'Try again!' };
       Audio.playFail();
     }
-    this.feedbackTimer = 2;
-  }
-  
-  handleIdentifyTap(x, y) {
-    if (this.showingAnswer) return;
-    
-    // Play button
-    if (hitRect(x, y, W/2 - 80, 200, 160, 80)) {
-      this.playQuestion();
-      return;
-    }
-    
-    // Options
-    const q = this.questions[this.currentQuestion];
-    const optY = 400;
-    const optH = 70;
-    const optGap = 15;
-    const correctIdx = q.options.indexOf(q.answer);
-    
-    for (let i = 0; i < q.options.length; i++) {
-      const oy = optY + i * (optH + optGap);
-      if (hitRect(x, y, 60, oy, W - 120, optH)) {
-        this.attempts++;
-        this.selectedAnswer = i;
-        this.showingAnswer = true;
-        
-        if (i === correctIdx) {
-          this.successes++;
-          this.score += 100;
-          this.feedback = { type: 'success', text: 'Correct! 👂' };
-          Audio.playSuccess();
-          spawnParticles(W/2, oy + optH/2, COLORS.success, 20);
-        } else {
-          this.feedback = { type: 'retry', text: `It was: ${q.answer}` };
-          Audio.playFail();
-        }
-        this.feedbackTimer = 2;
-        break;
-      }
-    }
+    this.feedbackTimer = 1.5;
   }
   
   handleComposeTap(x, y) {
-    // Piano keys
-    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
-    const keyW = 70;
-    const keyH = 150;
-    const startX = (W - keyW * notes.length) / 2;
-    const pianoY = 300;
+    const btnY = 300;
+    const btnH = 100;
+    const btnW = 140;
+    const values = [1, 1.125, 1.25, 1.375, 1.5];
     
-    for (let i = 0; i < notes.length; i++) {
-      const kx = startX + i * keyW;
-      if (hitRect(x, y, kx, pianoY, keyW, keyH)) {
-        Audio.playMelodyNote(notes[i]);
-        this.playerNotes.push(notes[i]);
-        spawnParticles(kx + keyW/2, pianoY + keyH/2, this.color, 5);
+    // Note buttons (5 notes in 2 rows)
+    for (let i = 0; i < 5; i++) {
+      const row = Math.floor(i / 3);
+      const col = i % 3;
+      const bx = row === 0 ? 60 + col * (btnW + 20) : 140 + (i - 3) * (btnW + 20);
+      const by = btnY + row * (btnH + 15);
+      
+      if (hitRect(x, y, bx, by, btnW, btnH)) {
+        this.baseFreq = 300;
+        Audio.playNote(this.baseFreq * values[i], 0.35);
+        this.playerNotes.push(values[i]);
+        spawnParticles(bx + btnW/2, by + btnH/2, this.color, 5);
         return;
       }
     }
     
     // Clear button
-    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 170, 600, 150, 50)) {
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 200, 620, 120, 50)) {
       Audio.playClick();
       this.playerNotes = [];
       return;
     }
     
     // Play button
-    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 + 20, 600, 150, 50)) {
-      this.playComposition();
+    if (this.playerNotes.length > 0 && hitRect(x, y, W/2 - 60, 620, 120, 50)) {
+      this.baseFreq = 300;
+      Audio.playMelody(this.baseFreq, this.playerNotes, 0.3);
       return;
     }
     
     // Finish button
-    if (this.playerNotes.length >= 4 && hitRect(x, y, W/2 - 100, 700, 200, 50)) {
+    if (this.playerNotes.length >= 4 && hitRect(x, y, W/2 - 100, 720, 200, 50)) {
       Audio.playSuccess();
       this.phase = 'complete';
     }
@@ -2611,9 +2668,10 @@ class MelodyLesson {
 // ╚══════════════════════════════════════════════════════════════════╝
 function getPos(e) {
   const rect = C.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (W / rect.width);
-  const y = (e.clientY - rect.top) * (H / rect.height);
-  return { x, y };
+  return {
+    x: (e.clientX - rect.left) * (W / rect.width),
+    y: (e.clientY - rect.top) * (H / rect.height)
+  };
 }
 
 C.addEventListener('mousedown', e => {
