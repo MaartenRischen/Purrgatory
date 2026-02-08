@@ -480,6 +480,119 @@ function drawDropje(ctx, x, y, scale, options = {}) {
 }
 
 // ╔══════════════════════════════════════════════════════════════════╗
+// ║  BERT THE DISTRACTING SHEEP                                       ║
+// ╚══════════════════════════════════════════════════════════════════╝
+function drawBert(ctx, x, y, scale, options = {}) {
+  const { bounce = 0, wiggle = 0 } = options;
+  
+  ctx.save();
+  ctx.translate(x, y + bounce);
+  ctx.rotate(Math.sin(wiggle) * 0.1);
+  ctx.scale(scale, scale);
+  
+  const wool = '#F5F5DC';  // Cream wool
+  const face = '#2a2a2a';  // Dark face
+  const pink = '#FFB6C1';  // Pink cheeks/ears
+  
+  // Fluffy wool body
+  ctx.fillStyle = wool;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const bx = Math.cos(angle) * 25;
+    const by = Math.sin(angle) * 20 + 15;
+    ctx.beginPath();
+    ctx.arc(bx, by, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Center wool
+  ctx.beginPath();
+  ctx.ellipse(0, 15, 30, 25, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Head wool poof
+  ctx.beginPath();
+  ctx.arc(-15, -35, 18, 0, Math.PI * 2);
+  ctx.arc(15, -35, 18, 0, Math.PI * 2);
+  ctx.arc(0, -45, 20, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Dark face
+  ctx.fillStyle = face;
+  ctx.beginPath();
+  ctx.ellipse(0, -25, 22, 26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ears
+  ctx.fillStyle = face;
+  ctx.beginPath();
+  ctx.ellipse(-32, -30, 12, 8, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(32, -30, 12, 8, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Pink inner ears
+  ctx.fillStyle = pink;
+  ctx.beginPath();
+  ctx.ellipse(-32, -30, 7, 4, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(32, -30, 7, 4, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Eyes - big and goofy
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.ellipse(-10, -30, 10, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(10, -30, 10, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Pupils - looking at player
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(-8, -28, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(12, -28, 5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Eye shine
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-10, -31, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(10, -31, 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Big goofy smile
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, -15, 14, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  
+  // Blush cheeks
+  ctx.fillStyle = 'rgba(255, 150, 150, 0.5)';
+  ctx.beginPath();
+  ctx.ellipse(-18, -18, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(18, -18, 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Little legs
+  ctx.fillStyle = face;
+  ctx.fillRect(-25, 40, 10, 20);
+  ctx.fillRect(15, 40, 10, 20);
+  
+  ctx.restore();
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
 // ║  UI COMPONENTS                                                    ║
 // ╚══════════════════════════════════════════════════════════════════╝
 function drawButton(ctx, x, y, w, h, text, color, hover = false) {
@@ -1069,6 +1182,17 @@ class RhythmLesson {
     
     this.countingIn = false;
     this.countInBeat = 0;
+    
+    // Bert the distracting sheep
+    this.bert = {
+      active: false,
+      x: -100,
+      targetX: -100,
+      y: 400,
+      timer: 2 + Math.random() * 3,
+      wiggle: 0,
+      side: 'left'
+    };
   }
   
   startCountIn() {
@@ -1229,6 +1353,52 @@ class RhythmLesson {
           this.startDemo();
         }
       }
+    }
+    
+    // Bert the distracting sheep
+    this.updateBert(dt);
+  }
+  
+  updateBert(dt) {
+    const bert = this.bert;
+    bert.wiggle += dt * 8;
+    
+    // Only appear during practice
+    if (this.phase === 'practice' && this.isPlaying) {
+      bert.timer -= dt;
+      
+      if (!bert.active && bert.timer <= 0) {
+        // Bert appears!
+        bert.active = true;
+        bert.side = Math.random() > 0.5 ? 'right' : 'left';
+        bert.x = bert.side === 'left' ? -80 : W + 80;
+        bert.targetX = bert.side === 'left' ? 80 : W - 80;
+        bert.y = 350 + Math.random() * 200;
+      }
+      
+      if (bert.active) {
+        // Slide in
+        bert.x = lerp(bert.x, bert.targetX, dt * 5);
+        
+        // Check if fully visible, then start retreat timer
+        const atTarget = Math.abs(bert.x - bert.targetX) < 5;
+        if (atTarget && bert.timer < -1.5) {
+          // Retreat!
+          bert.targetX = bert.side === 'left' ? -100 : W + 100;
+        }
+        
+        // Check if gone
+        if ((bert.side === 'left' && bert.x < -70) || 
+            (bert.side === 'right' && bert.x > W + 70)) {
+          bert.active = false;
+          bert.timer = 3 + Math.random() * 4; // Next appearance
+        }
+      }
+    } else {
+      // Reset when not practicing
+      bert.active = false;
+      bert.x = -100;
+      bert.timer = 2 + Math.random() * 3;
     }
   }
   
@@ -1475,6 +1645,25 @@ class RhythmLesson {
     ctx.font = '18px Georgia';
     ctx.textAlign = 'right';
     ctx.fillText(`Pattern ${this.currentPattern + 1}/${this.patterns.length}`, W - 30, 90);
+    
+    // Bert the distracting sheep!
+    if (this.bert.active) {
+      drawBert(ctx, this.bert.x, this.bert.y, 0.7, {
+        bounce: Math.sin(this.time * 6) * 8,
+        wiggle: this.bert.wiggle
+      });
+      
+      // Random distracting text
+      const distractions = ['BAAA!', 'Hey!', '👀', 'Oops!', 'Hehe~', '♪♫'];
+      const textIndex = Math.floor(this.time * 2) % distractions.length;
+      ctx.save();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px Georgia';
+      ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.9;
+      ctx.fillText(distractions[textIndex], this.bert.x, this.bert.y - 80);
+      ctx.restore();
+    }
   }
   
   renderComplete(ctx) {
