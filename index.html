@@ -1737,17 +1737,25 @@ class HarmonyLesson {
   
   getCorrectIndex() {
     const q = this.questions[this.currentQuestion];
-    const opts = this.getOptions();
-    const answerMap = {
-      'single': 0, 'chord': 1,
-      'major': 0, 'minor': 1,
-      'same': 0, 'different': 1,
-      'rest': 0, 'tension': 1,
-      'changed': 1,
-      'resolved': 0, 'unresolved': 1,
-      'happy': 0, 'sad': 1
-    };
-    return answerMap[q.answer];
+    // Explicit mapping for each question type
+    switch(q.type) {
+      case 'single-vs-chord':
+        return q.answer === 'single' ? 0 : 1;
+      case 'major-minor':
+        return q.answer === 'major' ? 0 : 1;
+      case 'same-different':
+        return q.answer === 'same' ? 0 : 1;
+      case 'tension-rest':
+        return q.answer === 'rest' ? 0 : 1;
+      case 'changed':
+        return q.answer === 'same' ? 0 : 1;
+      case 'progression-end':
+        return q.answer === 'resolved' ? 0 : 1;
+      case 'progression-mood':
+        return q.answer === 'happy' ? 0 : 1;
+      default:
+        return 0;
+    }
   }
   
   update(dt) {
